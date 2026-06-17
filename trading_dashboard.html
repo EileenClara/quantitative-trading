@@ -601,7 +601,14 @@ document.getElementById('submitOrder').addEventListener('click',()=>{
   document.getElementById('confirmModal').classList.add('show');
   document.getElementById('modalConfirm').onclick=async()=>{
     document.getElementById('confirmModal').classList.remove('show');
-    const r=await apiPost('/order',{symbol:s,exchange:'SHFE',direction:d,type:p?'限价':'市价',offset:o,volume:parseInt(v),price:parseFloat(p)||0,reference:'Dashboard'});
+    // 解析合约代码：cu2506.SHFE → symbol=cu2506, exchange=SHFE
+    let symbol=s, exchange='SHFE';
+    if(s.includes('.')){
+      const parts=s.split('.');
+      symbol=parts[0];
+      exchange=parts[1]||'SHFE';
+    }
+    const r=await apiPost('/order',{symbol:symbol,exchange:exchange,direction:d,type:p?'限价':'市价',offset:o,volume:parseInt(v),price:parseFloat(p)||0,reference:'Dashboard'});
     showToast(r.vt_orderid?'下单成功：'+r.vt_orderid:JSON.stringify(r),'success'); loadAll();
   };
 });
