@@ -555,10 +555,15 @@ async function toggleRiskRule(name,enabled){
   showToast((builtinRules[name]?.dn||name)+': '+(enabled?'已启用':'已关闭'),'success');
 }
 const builtinRules = {
-  order_flow_limit: {dn:'下单频率限制', desc:'控制每秒最多允许的下单次数。防止程序跑飞或误操作频繁报单。', unit:'次/秒', suggest:'建议 1-5'},
-  order_size_limit: {dn:'单笔数量限制', desc:'限制单笔委托的最大合约手数。', unit:'手', suggest:'建议 20'},
-  total_order_limit: {dn:'总委托数限制', desc:'限制同时存在的活跃委托单总数。', unit:'笔', suggest:'建议 30'},
-  cancel_limit: {dn:'撤单次数限制', desc:'限制一天内总撤单次数。', unit:'次/天', suggest:'建议 100'},
+  '活动委托检查': {dn:'活动委托检查', desc:'检查当前活跃委托单数量是否超过限制。防止同时挂太多单。', unit:'笔', suggest:'建议 20-50'},
+  '每日上限检查': {dn:'每日上限检查', desc:'限制每天最大下单/撤单总次数。超限当天禁止继续交易。', unit:'次/天', suggest:'建议 100-500'},
+  '重复报单检查': {dn:'重复报单检查', desc:'检测相同合约、方向、价格的重复委托。防止不小心重复下单。', unit:'同一合约', suggest:'禁止重复'},
+  '委托规模检查': {dn:'委托规模检查', desc:'限制单笔委托的最大手数。防止误输入大数量。', unit:'手', suggest:'建议 1-50'},
+  '委托指令检查': {dn:'委托指令检查', desc:'检查委托单合约代码是否有效、是否在交易时段内。过滤无效委托。', unit:'有效性', suggest:'必须有效'},
+  order_flow_limit: {dn:'下单频率限制', desc:'控制每秒最多允许的下单次数。', unit:'次/秒', suggest:'1-5'},
+  order_size_limit: {dn:'单笔数量限制', desc:'限制单笔委托的最大合约手数。', unit:'手', suggest:'20'},
+  total_order_limit: {dn:'总委托数限制', desc:'限制同时存在的活跃委托单总数。', unit:'笔', suggest:'30'},
+  cancel_limit: {dn:'撤单次数限制', desc:'限制一天内总撤单次数。', unit:'次/天', suggest:'100'},
 };
 async function toggleRiskRule(name,enabled){ const r=await apiPost(enabled?'/api/ext/risk-rule/add':'/api/ext/risk-rule/update',{rule_name:name,setting:{active:enabled}}); showToast(name+': '+(enabled?'已启用':'已禁用'),'success'); }
 function editRiskRule(name){
