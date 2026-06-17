@@ -44,6 +44,18 @@ Thumbs.db
 # vnpy upstream source (use pip-installed version instead)
 vnpy/
 
+# vnpy upstream docs/examples (not our project files)
+docs/
+examples/
+tests/
+.github/
+CHANGELOG.md
+README_ENG.md
+pyproject.toml
+install.bat
+install.sh
+install_osx.sh
+
 # Node / frontend
 node_modules/
 
