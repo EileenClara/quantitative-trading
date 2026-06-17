@@ -241,7 +241,7 @@ select.form-input{cursor:pointer}
       <h3>➕ 创建新策略实例</h3>
       <div class="form-group"><label class="form-label">策略类型</label><select class="form-input" id="ctaClassSelect" onchange="generateParamForm()"></select></div>
       <div class="form-group"><label class="form-label">策略名称（自定义一个好记的名字）</label><input class="form-input" id="ctaName" placeholder="例如：沪铜双均线策略"></div>
-      <div class="form-group"><label class="form-label">交易合约 <span style="font-size:11px;color:#667788">格式：合约代码.交易所，如 cu2506.SHFE（沪铜）、rb2510.SHFE（螺纹钢）</span></label><input class="form-input" id="ctaSymbols" placeholder="例如：cu2506.SHFE" list="contractDatalist"></div>
+      <div class="form-group"><label class="form-label">交易合约 <span style="font-size:11px;color:#667788">多个合约用英文逗号分隔，如 cu2506.SHFE,rb2510.SHFE</span></label><input class="form-input" id="ctaSymbols" placeholder="例如：cu2506.SHFE,rb2510.SHFE" list="contractDatalist"></div>
       <div class="form-group" id="ctaParamFields"><label class="form-label">策略参数</label><p style="font-size:13px;color:#667788">请先在"可用策略类型"中选择一个策略，或在上方选择策略类型后自动生成参数表</p></div>
       <button class="btn btn-gold" id="ctaAddBtn">添加策略</button>
     </div>
