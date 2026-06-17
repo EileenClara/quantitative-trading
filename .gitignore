@@ -43,6 +43,7 @@ Thumbs.db
 
 # vnpy upstream source (use pip-installed version instead)
 vnpy/
+_vnpy_backup/
 
 # vnpy upstream docs/examples (not our project files)
 docs/
