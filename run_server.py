@@ -21,9 +21,18 @@ from vnpy_ctastrategy import CtaStrategyApp
 from vnpy_ctabacktester import CtaBacktesterApp
 from vnpy_datamanager import DataManagerApp
 
+# ====== 算法交易 ======
+from vnpy_algotrading import AlgoTradingApp
+
+# ====== 风险管理 ======
+from vnpy_riskmanager import RiskManagerApp
+
 # ====== RPC 服务（核心！让 WebTrader 能连进来）======
 from vnpy_rpcservice import RpcServiceApp
 from vnpy_rpcservice.rpc_service.engine import RpcEngine, EVENT_RPC_LOG
+
+# ====== RPC 扩展（CTA/算法/风控 → Web API）======
+from rpc_extensions import register_extensions
 
 
 def process_log_event(event: Event) -> None:
@@ -61,13 +70,26 @@ def main() -> None:
     main_engine.add_app(CtaStrategyApp)
     main_engine.add_app(CtaBacktesterApp)
     main_engine.add_app(DataManagerApp)
-    print("[OK] 策略模块已加载")
+    print("[OK] 策略模块已加载（CTA策略 + 回测 + 数据管理）")
 
-    # 6. 添加 RPC 服务（让 WebTrader 可以通过网络调用）
+    # 6. 添加算法交易
+    main_engine.add_app(AlgoTradingApp)
+    print("[OK] 算法交易已加载（TWAP / Iceberg / Sniper / BestLimit）")
+
+    # 7. 添加风险管理
+    main_engine.add_app(RiskManagerApp)
+    print("[OK] 风控模块已加载")
+
+    # 8. 添加 RPC 服务（让 WebTrader 可以通过网络调用）
     rpc_engine: RpcEngine = main_engine.add_app(RpcServiceApp)
     print("[OK] RPC 服务已加载")
 
-    # 7. ====== 连接 CTP 交易接口（SimNow 仿真） ======
+    # 9. 注册扩展 RPC 函数（CTA策略/算法/风控 → Web API）
+    #    这样前端就能通过 REST API 管理策略、启动算法、设置风控
+    register_extensions(main_engine, rpc_engine.server)
+    print("[OK] RPC 扩展已注册（策略管理 + 算法交易 + 风控）")
+
+    # 10. ====== 连接 CTP 交易接口（SimNow 仿真） ======
     ctp_setting: dict[str, str] = {
         "用户名": "uskh301",
         "密码": "qwertyuiop~01",
@@ -84,7 +106,7 @@ def main() -> None:
     print("[*] 等待 CTP 连接完成（非交易时段可能无响应，属正常现象）...")
     sleep(10)
 
-    # 8. ====== 启动 RPC 服务器 ======
+    # 11. ====== 启动 RPC 服务器 ======
     rep_address: str = "tcp://*:2014"   # 请求/响应端口
     pub_address: str = "tcp://*:4102"   # 推送/订阅端口
     rpc_engine.start(rep_address, pub_address)

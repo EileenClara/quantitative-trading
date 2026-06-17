@@ -14,5 +14,9 @@ vnpy_paperaccount>=1.0.0  # 本地虚拟账户（仿真撮合）
 vnpy_rpcservice>=1.1.0    # RPC 分布式服务
 vnpy_webtrader>=1.1.0     # Web 交易服务器（REST API + WebSocket）
 
+# 量化功能
+vnpy_algotrading>=1.1.0    # 算法交易（TWAP/Iceberg/Sniper/BestLimit）
+vnpy_riskmanager>=2.0.0    # 风险管理（下单频率/数量/撤单限制）
+
 # 数据库
 vnpy_sqlite>=1.1.0        # SQLite 数据库驱动
