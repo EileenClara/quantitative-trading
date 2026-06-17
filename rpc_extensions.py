@@ -184,9 +184,7 @@ def register_extensions(
 
 def _get_engine(main_engine: MainEngine, app_name: str) -> Any:
     """从 MainEngine 中获取指定 App 的引擎实例"""
-    for engine in main_engine.engines.values():
-        if hasattr(engine, 'engine_type'):
-            eng_type = engine.engine_type
-            if eng_type and app_name in eng_type:
-                return engine
+    for name, engine in main_engine.engines.items():
+        if app_name in name:
+            return engine
     return None
