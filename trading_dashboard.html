@@ -513,19 +513,24 @@ function startAlgoFlow(templateName){
 let riskState = {};
 
 async function loadRiskRules(){
-  const rules=await apiGet('/api/ext/risk-rule-names');
+  // 优先用 /risk-rules（有真实 enabled 状态），不行再用 /risk-rule-names
+  let rules=await apiGet('/api/ext/risk-rules');
+  if(!rules||rules.length===0){
+    rules=await apiGet('/api/ext/risk-rule-names');
+  }
   if(!rules||rules.length===0) return;
-  // 初始化本地状态
+  // 同步本地状态：用服务器返回的真实 enabled 值
   rules.forEach(r=>{
     const name=typeof r==='string'?r:r.name;
-    if(!(name in riskState)) riskState[name] = {enabled: typeof r==='string'?false:(r.enabled||false)};
+    const enabled=typeof r==='string'?false:(r.enabled||false);
+    riskState[name] = {enabled};
   });
   const br = {
     '活动委托检查': {dn:'活动委托检查', desc:'检查当前活跃委托单数量是否超过限制。', unit:'笔', suggest:'建议 20-50'},
     '每日上限检查': {dn:'每日上限检查', desc:'限制每天最大下单/撤单总次数。', unit:'次/天', suggest:'建议 100-500'},
-    '重复报单检查': {dn:'重复报单检查', desc:'检测相同合约、方向、价格的重复委托。', unit:'同一合约', suggest:'禁止重复'},
-    '委托规模检查': {dn:'委托规模检查', desc:'限制单笔委托的最大手数。', unit:'手', suggest:'建议 1-50'},
-    '委托指令检查': {dn:'委托指令检查', desc:'检查合约代码是否有效、是否在交易时段。', unit:'有效性', suggest:'必须有效'},
+    '重复报单检查': {dn:'重复报单检查', desc:'检测相同合约、方向、价格的重复委托。防止不小心重复下单。', type:'boolean'},
+    '委托规模检查': {dn:'委托规模检查', desc:'限制单笔委托的最大手数。防止误输入大数量。', unit:'手', suggest:'建议 1-50'},
+    '委托指令检查': {dn:'委托指令检查', desc:'检查合约代码是否有效、是否在交易时段。过滤无效委托。', type:'boolean'},
     order_flow_limit: {dn:'下单频率限制', desc:'控制每秒最多允许的下单次数。', unit:'次/秒', suggest:'建议 2'},
     order_size_limit: {dn:'单笔数量限制', desc:'限制单笔委托的最大合约手数。', unit:'手', suggest:'建议 20'},
     total_order_limit: {dn:'总委托数限制', desc:'限制同时存在的活跃委托单总数。', unit:'笔', suggest:'建议 30'},
@@ -538,25 +543,33 @@ async function loadRiskRules(){
     const info=br[name]||{};
     const unit=info.unit||'';
     const suggest=info.suggest||'';
+    const isBoolean=info.type==='boolean';  // 布尔型规则只需开关，不需设置上限
     const enabled=riskState[name]?.enabled||false;
-    return `<div class="risk-rule">
+    return `<div class="risk-rule" data-rule="${name.replace(/"/g,'&quot;')}">
       <div class="rr-info" style="flex:1">
         <h4>${info.dn||dn}</h4>
         <p style="font-size:12px;color:#8899aa;margin-top:4px">${desc}</p>
-        <p style="font-size:11px;color:#667788;margin-top:2px">📏 单位：${unit} | 💡 建议值：${suggest}</p>
+        <p style="font-size:11px;color:#667788;margin-top:2px">${isBoolean?'🔘 此规则为开关型，无需设置上限值':`📏 单位：${unit} | 💡 建议值：${suggest}`}</p>
         <p style="font-size:10px;color:#445566">${name}</p>
       </div>
       <div class="rr-controls">
-        <span class="badge ${enabled?'badge-running':'badge-stopped'}" style="margin-right:12px">${enabled?'已启用':'已关闭'}</span>
-        <label class="toggle"><input type="checkbox" ${enabled?'checked':''} onchange="toggleRiskRule('${name}',this.checked)"><span class="slider"></span></label>
-        <button class="btn btn-blue btn-sm" onclick="editRiskRule('${name}')">设置上限</button>
+        <span class="badge risk-status-badge ${enabled?'badge-running':'badge-stopped'}" style="margin-right:12px">${enabled?'已启用':'已关闭'}</span>
+        <label class="toggle"><input type="checkbox" ${enabled?'checked':''} onchange="toggleRiskRule('${name}',this)"><span class="slider"></span></label>
+        ${isBoolean?'':`<button class="btn btn-blue btn-sm" onclick="editRiskRule('${name}')">设置上限</button>`}
       </div>
     </div>`;
   }).join('');
 }
-async function toggleRiskRule(name,enabled){
+async function toggleRiskRule(name,cb){
+  const enabled=cb.checked;
   riskState[name] = {enabled};
-  await apiPost(enabled?'/api/ext/risk-rule/add':'/api/ext/risk-rule/update',{rule_name:name,setting:{active:enabled}});
+  const r=await apiPost(enabled?'/api/ext/risk-rule/add':'/api/ext/risk-rule/update',{rule_name:name,setting:{active:enabled}});
+  // 更新当前行的徽章
+  const card=cb.closest('.risk-rule');
+  if(card){
+    const badge=card.querySelector('.risk-status-badge');
+    if(badge){badge.textContent=enabled?'已启用':'已关闭';badge.className='badge risk-status-badge '+(enabled?'badge-running':'badge-stopped');}
+  }
   showToast((builtinRules[name]?.dn||name)+': '+(enabled?'已启用':'已关闭'),'success');
 }
 const builtinRules = {
