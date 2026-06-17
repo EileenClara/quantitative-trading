@@ -1,0 +1,11 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "command": "cd \"e:/me/Python/quantitative trading\" && PYTHONIOENCODING=utf-8 python test_all.py",
+        "timeout": 30000
+      }
+    ]
+  }
+}
