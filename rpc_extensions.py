@@ -41,6 +41,9 @@ def register_extensions(
 
         def rpc_get_strategy_classes() -> list:
             """获取所有可用策略类型及参数"""
+            # 如果引擎还没加载策略，先加载内置策略
+            if not cta_engine.classes:
+                _load_builtin_strategies(cta_engine)
             names = cta_engine.get_all_strategy_class_names()
             result = []
             for class_name in names:
@@ -55,7 +58,14 @@ def register_extensions(
                              vt_symbols: str, setting: dict) -> str:
             """添加策略实例"""
             symbols = [s.strip() for s in vt_symbols.split(",") if s.strip()]
-            cta_engine.add_strategy(class_name, strategy_name, ";".join(symbols), setting)
+            if not symbols:
+                return "ERROR: 请填写交易合约（格式：cu2506.SHFE），不能为空"
+            for sym in symbols:
+                if "." not in sym:
+                    return f"ERROR: 合约代码 {sym} 格式错误，缺少交易所后缀（如 .SHFE .DCE）"
+            if class_name not in cta_engine.classes:
+                return f"ERROR: 找不到策略类型 {class_name}（可用：{list(cta_engine.classes.keys())[:5]}...），请重启服务器"
+            cta_engine.add_strategy(class_name, strategy_name, symbols[0], setting)
             return f"策略 {strategy_name} 已添加"
 
         def rpc_init_strategy(strategy_name: str) -> str:
@@ -180,6 +190,22 @@ def register_extensions(
         rpc_server.register(rpc_get_risk_rule_names)
         rpc_server.register(rpc_update_risk_rule)
         rpc_server.register(rpc_add_risk_rule)
+
+
+def _load_builtin_strategies(cta_engine: Any) -> None:
+    """把 vnpy_ctastrategy 内置的策略文件加载到引擎中"""
+    import vnpy_ctastrategy, os, importlib
+    from pathlib import Path
+    strat_dir = Path(os.path.dirname(vnpy_ctastrategy.__file__)) / "strategies"
+    if not strat_dir.exists():
+        print(f"[WARN] Strategy dir not found: {strat_dir}")
+        return
+    for f in sorted(strat_dir.glob("*_strategy.py")):
+        mod_name = f.stem
+        full_name = f"vnpy_ctastrategy.strategies.{mod_name}"
+        mod = importlib.import_module(full_name)
+        cta_engine.load_strategy_class_from_module(mod)
+        print(f"[OK] Loaded strategy: {mod_name}")
 
 
 def _get_engine(main_engine: MainEngine, app_name: str) -> Any:
