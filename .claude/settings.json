@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "command": "echo \"[HOOK] 强制前后端规则：禁止写死静态数字，所有数据必须从 API/WebSocket 获取。检查：fetch() + WebSocket + auth token + 错误处理 + 空状态。\""
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit.*trading_dashboard\\.html|Write.*trading_dashboard\\.html",
+        "command": "cd \"e:/me/Python/quantitative trading\" && python -c \"import sys; html=open('trading_dashboard.html','r',encoding='utf-8').read(); checks={'apiGet':'REST API','apiPost':'POST API','WebSocket':'WebSocket','Authorization':'JWT auth','showToast':'error handling','empty-state':'empty state'}; missing=[v for k,v in checks.items() if k not in html]; print('[VALIDATE] All checks passed' if not missing else f'[WARN] Missing: {missing}')\""
+      }
+    ]
+  }
+}
