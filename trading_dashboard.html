@@ -366,8 +366,29 @@ async function loadStrategyClasses(){
 async function loadStrategies(){
   const s=await apiGet('/api/ext/strategies');
   const el=document.getElementById('runningStrategies');
-  if(s.length===0){el.innerHTML='<div class="empty-state">暂无运行中的策略<br><br>在上方选择一个策略类型并添加</div>';return;}
-  el.innerHTML=s.map(x=>`<div class="strat-card"><h4>${x.name}</h4><div class="desc">${x.class_name} | 合约：${x.vt_symbols}</div><div class="params">变量：${JSON.stringify(x.variables)} | 参数：${JSON.stringify(x.parameters)}</div><div class="strat-actions"><span class="badge ${x.inited?'badge-running':'badge-stopped'}">初始化：${x.inited?'✅':'❌'}</span><span class="badge ${x.trading?'badge-running':'badge-stopped'}">运行中：${x.trading?'✅':'❌'}</span><button class="btn btn-blue btn-sm" onclick="ctaInit('${x.name}')">初始化</button><button class="btn btn-green btn-sm" onclick="ctaStart('${x.name}')">启动</button><button class="btn btn-red btn-sm" onclick="ctaStop('${x.name}')">停止</button><button class="btn btn-ghost btn-sm" onclick="ctaRemove('${x.name}')">移除</button></div></div>`).join('');
+  if(s.length===0){el.innerHTML='<div class="empty-state"><p style="font-size:16px;margin-bottom:8px">暂无策略</p><p style="font-size:13px;color:#667788">在上方选择一个策略类型，填好合约代码（如 cu2506.SHFE），然后点"添加策略"</p></div>';return;}
+  el.innerHTML=s.map(x=>{
+    const statusText = x.trading ? '正在运行' : (x.inited ? '已就绪（待启动）' : '已添加（待初始化）');
+    const statusCls = x.trading ? 'badge-running' : (x.inited ? 'badge-pending' : 'badge-stopped');
+    const params = x.parameters||{};
+    const paramStr = Object.entries(params).map(([k,v])=>`<span style="color:#c9a96e">${paramNames[k]||k}</span>=${v}`).join('，')||'默认';
+    const vars = x.variables||{};
+    const varStr = Object.keys(vars).length>0 ? Object.entries(vars).map(([k,v])=>`${k}: ${v}`).join(' | ') : '暂无数据';
+    return `<div class="strat-card">
+      <h4>${x.name} <span class="badge ${statusCls}">${statusText}</span></h4>
+      <div class="desc" style="font-size:12px;color:#667788">${x.class_name}</div>
+      <p style="font-size:13px;color:#8899aa;margin-top:6px">📌 盯市合约：<strong style="color:#f0efe7">${x.vt_symbols||'未设置'}</strong></p>
+      <p style="font-size:13px;color:#8899aa">⚙️ 参数：${paramStr}</p>
+      <p style="font-size:12px;color:#667788">📊 运行数据：${varStr}</p>
+      <p style="font-size:11px;color:#445566;margin-top:4px">💡 ${x.trading?'策略正在接收行情并计算信号。若长时间无变化，请确认合约行情是否在交易时段内。':(x.inited?'策略已加载参数，点击"启动"即开始盯盘。':'点击"初始化"加载参数，再点击"启动"开始盯盘。')}</p>
+      <div class="strat-actions">
+        <button class="btn btn-blue btn-sm" onclick="ctaInit('${x.name}')">初始化</button>
+        <button class="btn btn-green btn-sm" onclick="ctaStart('${x.name}')">启动</button>
+        <button class="btn btn-red btn-sm" onclick="ctaStop('${x.name}')">停止</button>
+        <button class="btn btn-ghost btn-sm" onclick="ctaRemove('${x.name}')">移除</button>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function selectStrategy(name){
@@ -452,8 +473,18 @@ async function loadAlgoTemplates(){
 async function loadAlgos(){
   const a=await apiGet('/api/ext/algos');
   const el=document.getElementById('runningAlgos');
-  if(a.length===0){el.innerHTML='<div class="empty-state">暂无运行中的算法</div>';return;}
-  el.innerHTML=a.map(x=>`<div class="strat-card"><h4>${x.template_name}</h4><div class="desc">${x.vt_symbol} | ${x.direction} | ${x.offset}</div><div class="params">已成交/总量：${x.traded_volume||0}/${x.volume} | 状态：${x.status}</div><div class="strat-actions"><button class="btn btn-blue btn-sm" onclick="algoAction('pause','${x.name}')">暂停</button><button class="btn btn-green btn-sm" onclick="algoAction('resume','${x.name}')">恢复</button><button class="btn btn-red btn-sm" onclick="algoAction('stop','${x.name}')">停止</button></div></div>`).join('');
+  if(a.length===0){el.innerHTML='<div class="empty-state"><p style="font-size:16px;margin-bottom:8px">暂无运行中的算法</p><p style="font-size:13px;color:#667788">在上方选择一个算法模板，点击"启动此算法"即可</p></div>';return;}
+  el.innerHTML=a.map(x=>`<div class="strat-card">
+    <h4>${x.template_name} <span class="badge ${x.status==='运行中'?'badge-running':'badge-pending'}">${x.status||'运行中'}</span></h4>
+    <p style="font-size:13px;color:#8899aa;margin-top:6px">📌 合约：<strong style="color:#f0efe7">${x.vt_symbol} | ${x.direction} | ${x.offset}</strong></p>
+    <p style="font-size:13px;color:#8899aa">📊 进度：已成交 <strong style="color:#f0efe7">${x.traded_volume||0}</strong> / 共 <strong style="color:#f0efe7">${x.volume}</strong> 手 | 目标价：<strong style="color:#f0efe7">${x.price>0?x.price:'市价'}</strong></p>
+    <p style="font-size:11px;color:#445566;margin-top:4px">💡 算法在后台自动拆单执行。市场有行情时自动成交，无需手动干预。</p>
+    <div class="strat-actions">
+      <button class="btn btn-blue btn-sm" onclick="algoAction('pause','${x.name}')">暂停</button>
+      <button class="btn btn-green btn-sm" onclick="algoAction('resume','${x.name}')">恢复</button>
+      <button class="btn btn-red btn-sm" onclick="algoAction('stop','${x.name}')">停止</button>
+    </div>
+  </div>`).join('');
 }
 async function algoAction(action,name){ const r=await apiPost(`/api/ext/algo/${action}`,{algo_name:name}); showToast(r.message,'success'); loadAlgos(); }
 
@@ -478,28 +509,57 @@ function startAlgoFlow(templateName){
 }
 
 // ========== Risk Management ==========
+// 风控规则本地状态（解决开关弹回问题）
+let riskState = {};
+
 async function loadRiskRules(){
   const rules=await apiGet('/api/ext/risk-rule-names');
-  // Parse response — it's either array of objects (new format) or strings (old format)
+  if(!rules||rules.length===0) return;
+  // 初始化本地状态
+  rules.forEach(r=>{
+    const name=typeof r==='string'?r:r.name;
+    if(!(name in riskState)) riskState[name] = {enabled: typeof r==='string'?false:(r.enabled||false)};
+  });
+  const builtinRules = {
+    order_flow_limit: {dn:'下单频率限制', desc:'控制每秒/每分钟最多允许的下单次数。防止程序跑飞或误操作频繁报单。', unit:'次/秒', suggest:'1-5 次/秒，建议设为 2'},
+    order_size_limit: {dn:'单笔数量限制', desc:'限制单笔委托的最大合约手数。防止误输入大数量导致巨额亏损。', unit:'手', suggest:'1-100 手，建议设为 20'},
+    total_order_limit: {dn:'总委托数限制', desc:'限制同时存在的活跃委托单总数。超过时新委托会被拒绝。', unit:'笔', suggest:'10-50 笔，建议设为 30'},
+    cancel_limit: {dn:'撤单次数限制', desc:'限制一天内总撤单次数。过度撤单可能被交易所警告。', unit:'次/天', suggest:'50-200 次，建议设为 100'},
+  };
   document.getElementById('riskRules').innerHTML= rules.map(r=>{
     const name=typeof r==='string'?r:r.name;
     const dn=typeof r==='string'?name:r.display_name||name;
-    const desc=typeof r==='string'?'':r.description||'';
-    const defLim=typeof r==='string'?'':r.default_limit||'';
+    const desc=typeof r==='string'?builtinRules[name]?.desc||'':r.description||'';
+    const info=builtinRules[name]||{};
+    const unit=info.unit||'';
+    const suggest=info.suggest||'';
+    const enabled=riskState[name]?.enabled||false;
     return `<div class="risk-rule">
-      <div class="rr-info">
-        <h4>${dn}</h4>
-        ${desc?`<p style="font-size:12px;color:#8899aa;margin-top:4px">${desc}</p>`:''}
-        ${defLim?`<p style="font-size:11px;color:#667788;margin-top:2px">📏 建议限制：${defLim}</p>`:''}
-        <p style="font-size:11px;color:#445566">${name}</p>
+      <div class="rr-info" style="flex:1">
+        <h4>${info.dn||dn}</h4>
+        <p style="font-size:12px;color:#8899aa;margin-top:4px">${desc}</p>
+        <p style="font-size:11px;color:#667788;margin-top:2px">📏 单位：${unit} | 💡 建议值：${suggest}</p>
+        <p style="font-size:10px;color:#445566">${name}</p>
       </div>
       <div class="rr-controls">
-        <label class="toggle"><input type="checkbox" onchange="toggleRiskRule('${name}',this.checked)"><span class="slider"></span></label>
-        <button class="btn btn-blue btn-sm" onclick="editRiskRule('${name}')">配置</button>
+        <span class="badge ${enabled?'badge-running':'badge-stopped'}" style="margin-right:12px">${enabled?'已启用':'已关闭'}</span>
+        <label class="toggle"><input type="checkbox" ${enabled?'checked':''} onchange="toggleRiskRule('${name}',this.checked)"><span class="slider"></span></label>
+        <button class="btn btn-blue btn-sm" onclick="editRiskRule('${name}')">设置上限</button>
       </div>
     </div>`;
   }).join('');
 }
+async function toggleRiskRule(name,enabled){
+  riskState[name] = {enabled};
+  await apiPost(enabled?'/api/ext/risk-rule/add':'/api/ext/risk-rule/update',{rule_name:name,setting:{active:enabled}});
+  showToast((builtinRules[name]?.dn||name)+': '+(enabled?'已启用':'已关闭'),'success');
+}
+const builtinRules = {
+  order_flow_limit: {dn:'下单频率限制', desc:'控制每秒最多允许的下单次数。防止程序跑飞或误操作频繁报单。', unit:'次/秒', suggest:'建议 1-5'},
+  order_size_limit: {dn:'单笔数量限制', desc:'限制单笔委托的最大合约手数。', unit:'手', suggest:'建议 20'},
+  total_order_limit: {dn:'总委托数限制', desc:'限制同时存在的活跃委托单总数。', unit:'笔', suggest:'建议 30'},
+  cancel_limit: {dn:'撤单次数限制', desc:'限制一天内总撤单次数。', unit:'次/天', suggest:'建议 100'},
+};
 async function toggleRiskRule(name,enabled){ const r=await apiPost(enabled?'/api/ext/risk-rule/add':'/api/ext/risk-rule/update',{rule_name:name,setting:{active:enabled}}); showToast(name+': '+(enabled?'已启用':'已禁用'),'success'); }
 function editRiskRule(name){
   document.getElementById('modalTitle').textContent='配置风控规则';
