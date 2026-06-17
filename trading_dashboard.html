@@ -562,9 +562,19 @@ async function loadRiskRules(){
 }
 async function toggleRiskRule(name,cb){
   const enabled=cb.checked;
+  // 1. 调后端 API
   await apiPost(enabled?'/api/ext/risk-rule/add':'/api/ext/risk-rule/update',{rule_name:name,setting:{active:enabled}});
-  // 从服务器拉最新状态，完整刷新列表
-  await loadRiskRules();
+  // 2. 更新本地状态
+  riskState[name] = {enabled};
+  // 3. 直接改当前行徽章（不重载，避免 DOM 重建导致闪烁）
+  const row=cb.closest('.risk-rule');
+  if(row){
+    const badge=row.querySelector('.risk-status-badge');
+    if(badge){
+      badge.textContent=enabled?'已启用':'已关闭';
+      badge.className='badge risk-status-badge '+(enabled?'badge-running':'badge-stopped');
+    }
+  }
 }
 const builtinRules = {
   '活动委托检查': {dn:'活动委托检查', desc:'检查当前活跃委托单数量是否超过限制。防止同时挂太多单。', unit:'笔', suggest:'建议 20-50'},
