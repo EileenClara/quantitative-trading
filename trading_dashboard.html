@@ -342,10 +342,23 @@ async function loadTrades(){
 async function loadStrategyClasses(){
   const s=await apiGet('/api/ext/strategy-classes');
   const el=document.getElementById('strategyClasses');
-  const nameMap={DoubleMaStrategy:'双均线策略',AtrRsiStrategy:'ATR+RSI 策略',BollChannelStrategy:'布林带策略',DualThrustStrategy:'Dual Thrust 策略',KingKeltnerStrategy:'Keltner 通道策略',TurtleSignalStrategy:'海龟策略',MultiSignalStrategy:'多信号策略',MultiTimeframeStrategy:'多周期策略'};
-  el.innerHTML=s.map(x=>`<div class="strat-card"><h4>${nameMap[x.class_name]||x.class_name}</h4><div class="desc">类型：${x.class_name}</div><div class="params">参数：${JSON.stringify(x.parameters)}</div><button class="btn btn-blue btn-sm" onclick="selectStrategy('${x.class_name}')">选择此策略</button></div>`).join('');
+  el.innerHTML=s.map(x=>{
+    const dn=x.display_name||x.class_name;
+    const desc=x.description||'';
+    const scenario=x.scenario||'';
+    const params=x.parameters||{};
+    const paramStr=Object.entries(params).map(([k,v])=>`<span style="color:#c9a96e">${k}</span>=${v}`).join('，');
+    return `<div class="strat-card">
+      <h4>${dn}</h4>
+      <div class="desc" style="font-size:12px;color:#667788;margin-bottom:4px">${x.class_name}</div>
+      <p style="font-size:13px;color:#8899aa;line-height:1.5;margin-bottom:6px">📖 ${desc}</p>
+      <p style="font-size:12px;color:#667788;line-height:1.4;margin-bottom:8px">🎯 适用场景：${scenario}</p>
+      <div class="params" style="margin-bottom:10px">⚙️ 参数：${paramStr}</div>
+      <button class="btn btn-blue btn-sm" onclick="selectStrategy('${x.class_name}')">选择此策略</button>
+    </div>`;
+  }).join('');
   const sel=document.getElementById('ctaClassSelect');
-  sel.innerHTML=s.map(x=>`<option value="${x.class_name}">${nameMap[x.class_name]||x.class_name}</option>`).join('');
+  sel.innerHTML=s.map(x=>`<option value="${x.class_name}">${x.display_name||x.class_name}</option>`).join('');
 }
 
 async function loadStrategies(){
@@ -374,7 +387,21 @@ document.getElementById('ctaAddBtn').addEventListener('click',ctaAdd);
 // ========== Algo Trading ==========
 async function loadAlgoTemplates(){
   const t=await apiGet('/api/ext/algo-templates');
-  document.getElementById('algoTemplates').innerHTML=t.map(x=>`<div class="algo-card"><h4>${x.display_name||x.name}</h4><div class="algo-desc">默认参数：${JSON.stringify(x.default_setting||{})}</div><button class="btn btn-blue" onclick="startAlgoFlow('${x.name}')">启动此算法</button></div>`).join('');
+  document.getElementById('algoTemplates').innerHTML=t.map(x=>{
+    const dn=x.display_name||x.name;
+    const desc=x.description||'';
+    const scenario=x.scenario||'';
+    const setting=x.default_setting||{};
+    const settingStr=Object.entries(setting).map(([k,v])=>`<span style="color:#5dade2">${k}</span>=${v}`).join('，');
+    return `<div class="algo-card">
+      <h4>${dn}</h4>
+      <div class="algo-desc" style="font-size:12px;color:#667788;margin-bottom:4px">${x.name}</div>
+      <p style="font-size:13px;color:#8899aa;line-height:1.5;margin-bottom:6px">📖 ${desc}</p>
+      <p style="font-size:12px;color:#667788;line-height:1.4;margin-bottom:8px">🎯 使用场景：${scenario}</p>
+      <div class="params" style="margin-bottom:10px;font-size:13px">⚙️ 可调参数：${settingStr}</div>
+      <button class="btn btn-blue" onclick="startAlgoFlow('${x.name}')">启动此算法</button>
+    </div>`;
+  }).join('');
 }
 async function loadAlgos(){
   const a=await apiGet('/api/ext/algos');
@@ -406,9 +433,26 @@ function startAlgoFlow(templateName){
 
 // ========== Risk Management ==========
 async function loadRiskRules(){
-  const names=await apiGet('/api/ext/risk-rule-names');
-  const nameMap={order_flow_limit:'下单频率限制',order_size_limit:'单笔数量限制',total_order_limit:'总委托数限制',cancel_limit:'撤单次数限制'};
-  document.getElementById('riskRules').innerHTML=names.map(n=>`<div class="risk-rule"><div class="rr-info"><h4>${nameMap[n]||n}</h4><p>${n}</p></div><div class="rr-controls"><label class="toggle"><input type="checkbox" onchange="toggleRiskRule('${n}',this.checked)"><span class="slider"></span></label><button class="btn btn-blue btn-sm" onclick="editRiskRule('${n}')">配置</button></div></div>`).join('');
+  const rules=await apiGet('/api/ext/risk-rule-names');
+  // Parse response — it's either array of objects (new format) or strings (old format)
+  document.getElementById('riskRules').innerHTML= rules.map(r=>{
+    const name=typeof r==='string'?r:r.name;
+    const dn=typeof r==='string'?name:r.display_name||name;
+    const desc=typeof r==='string'?'':r.description||'';
+    const defLim=typeof r==='string'?'':r.default_limit||'';
+    return `<div class="risk-rule">
+      <div class="rr-info">
+        <h4>${dn}</h4>
+        ${desc?`<p style="font-size:12px;color:#8899aa;margin-top:4px">${desc}</p>`:''}
+        ${defLim?`<p style="font-size:11px;color:#667788;margin-top:2px">📏 建议限制：${defLim}</p>`:''}
+        <p style="font-size:11px;color:#445566">${name}</p>
+      </div>
+      <div class="rr-controls">
+        <label class="toggle"><input type="checkbox" onchange="toggleRiskRule('${name}',this.checked)"><span class="slider"></span></label>
+        <button class="btn btn-blue btn-sm" onclick="editRiskRule('${name}')">配置</button>
+      </div>
+    </div>`;
+  }).join('');
 }
 async function toggleRiskRule(name,enabled){ const r=await apiPost(enabled?'/api/ext/risk-rule/add':'/api/ext/risk-rule/update',{rule_name:name,setting:{active:enabled}}); showToast(name+': '+(enabled?'已启用':'已禁用'),'success'); }
 function editRiskRule(name){
