@@ -177,13 +177,21 @@ def register_extensions(
             return risk_engine.get_all_rule_names()
 
         def rpc_update_risk_rule(rule_name: str, setting: dict) -> str:
-            """更新风控规则"""
-            risk_engine.update_rule_setting(rule_name, setting)
+            """更新/启停风控规则"""
+            rule = risk_engine.rules.get(rule_name)
+            if rule:
+                if "active" in setting:
+                    rule.active = setting["active"]
+                if "limit" in setting:
+                    rule.setting = rule.setting or {}
+                    rule.setting["limit"] = setting["limit"]
             return f"风控规则 {rule_name} 已更新"
 
         def rpc_add_risk_rule(rule_name: str) -> str:
             """启用风控规则"""
-            risk_engine.add_rule(rule_name)
+            rule = risk_engine.rules.get(rule_name)
+            if rule:
+                rule.active = True
             return f"风控规则 {rule_name} 已启用"
 
         rpc_server.register(rpc_get_risk_rules)

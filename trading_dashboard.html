@@ -522,8 +522,12 @@ async function loadRiskRules(){
   // 同步本地状态：用服务器返回的真实 enabled 值
   rules.forEach(r=>{
     const name=typeof r==='string'?r:r.name;
-    const enabled=typeof r==='string'?false:(r.enabled||false);
-    riskState[name] = {enabled};
+    if(typeof r==='string'){
+      // fallback 路径：字符串没有 enabled 字段，保留既有状态
+      if(!(name in riskState)) riskState[name] = {enabled: false};
+    }else{
+      riskState[name] = {enabled: r.enabled||false};
+    }
   });
   const br = {
     '活动委托检查': {dn:'活动委托检查', desc:'检查当前活跃委托单数量是否超过限制。', unit:'笔', suggest:'建议 20-50'},
@@ -553,8 +557,8 @@ async function loadRiskRules(){
         <p style="font-size:10px;color:#445566">${name}</p>
       </div>
       <div class="rr-controls">
-        <span class="badge risk-status-badge ${enabled?'badge-running':'badge-stopped'}" style="margin-right:12px">${enabled?'已启用':'已关闭'}</span>
-        <label class="toggle"><input type="checkbox" ${enabled?'checked':''} onchange="toggleRiskRule('${name}',this)"><span class="slider"></span></label>
+        <span id="badge_${name.replace(/[^a-zA-Z0-9一-鿿]/g,'_')}" class="badge risk-status-badge ${enabled?'badge-running':'badge-stopped'}" style="margin-right:12px">${enabled?'已启用':'已关闭'}</span>
+        <label class="toggle"><input type="checkbox" ${enabled?'checked':''} data-rule="${name.replace(/"/g,'&quot;')}"><span class="slider"></span></label>
         ${isBoolean?'':`<button class="btn btn-blue btn-sm" onclick="editRiskRule('${name}')">设置上限</button>`}
       </div>
     </div>`;
@@ -562,18 +566,14 @@ async function loadRiskRules(){
 }
 async function toggleRiskRule(name,cb){
   const enabled=cb.checked;
-  // 1. 调后端 API
   await apiPost(enabled?'/api/ext/risk-rule/add':'/api/ext/risk-rule/update',{rule_name:name,setting:{active:enabled}});
-  // 2. 更新本地状态
   riskState[name] = {enabled};
-  // 3. 直接改当前行徽章（不重载，避免 DOM 重建导致闪烁）
-  const row=cb.closest('.risk-rule');
-  if(row){
-    const badge=row.querySelector('.risk-status-badge');
-    if(badge){
-      badge.textContent=enabled?'已启用':'已关闭';
-      badge.className='badge risk-status-badge '+(enabled?'badge-running':'badge-stopped');
-    }
+  // 直接用 ID 找徽章
+  const id='badge_'+name.replace(/[^a-zA-Z0-9一-鿿]/g,'_');
+  const badge=document.getElementById(id);
+  if(badge){
+    badge.textContent=enabled?'已启用':'已关闭';
+    badge.className='badge risk-status-badge '+(enabled?'badge-running':'badge-stopped');
   }
 }
 const builtinRules = {
@@ -658,6 +658,23 @@ function statusBadge(s){const m={'全部成交':'badge-filled','已撤销':'badg
 function showToast(msg,type){const c=document.getElementById('toastContainer'),e=document.createElement('div');e.className='toast '+type;e.textContent=msg;c.appendChild(e);setTimeout(()=>{e.style.opacity='0';setTimeout(()=>e.remove(),300);},3000);}
 function updateStatus(d,t){const dot=document.getElementById('statusDot');dot.className='status-dot '+d;setEl('statusText',t);}
 function updateStatusTime(){const n=new Date();setEl('statusTime',`⏱ 行情更新：${n.getHours().toString().padStart(2,'0')}:${n.getMinutes().toString().padStart(2,'0')}:${n.getSeconds().toString().padStart(2,'0')}`);}
+
+// ========== Risk toggle event delegation ==========
+document.addEventListener('change', function(e){
+  const cb = e.target;
+  if(cb.type==='checkbox' && cb.dataset.rule){
+    const name = cb.dataset.rule;
+    const enabled = cb.checked;
+    apiPost(enabled?'/api/ext/risk-rule/add':'/api/ext/risk-rule/update',{rule_name:name,setting:{active:enabled}});
+    riskState[name] = {enabled};
+    const id = 'badge_'+name.replace(/[^a-zA-Z0-9一-鿿]/g,'_');
+    const badge = document.getElementById(id);
+    if(badge){
+      badge.textContent = enabled?'已启用':'已关闭';
+      badge.className = 'badge risk-status-badge '+(enabled?'badge-running':'badge-stopped');
+    }
+  }
+});
 
 // ========== Start ==========
 init(); loadContracts(); setInterval(loadAll,10000);
