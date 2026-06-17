@@ -117,7 +117,7 @@ def main() -> None:
     print(f"  推送端口: {pub_address}")
     print("  现在可以启动 run_web.py 了")
     print("")
-    print("  ⚠️ CTP 交易时段才能获取行情：")
+    print("  !! CTP 交易时段才能获取行情：")
     print("     上午 9:00-11:30 | 下午 13:30-15:00 | 夜盘 21:00 起")
     print("=" * 60)
 
