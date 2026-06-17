@@ -305,7 +305,7 @@ function connectWebSocket(){
 function handlePush(msg){ updateStatusTime(); if(msg.topic==='eTrade'||msg.topic==='eOrder') loadAll(); }
 
 // ========== Load All ==========
-async function loadAll(){ await loadAccounts(); await loadPositions(); await loadOrders(); await loadTrades(); await loadStrategies(); await loadAlgos(); await loadRiskRules(); }
+async function loadAll(){ await loadAccounts(); await loadPositions(); await loadOrders(); await loadTrades(); await loadStrategies(); await loadAlgos(); /* 风控/策略类型/算法模板不需要每10秒刷新 */ }
 
 // ========== Accounts ==========
 async function loadAccounts(){
