@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+*.wpr
+*.wpu
+.vs/
+x64/
+
+# Temp
+*.local
+
+# VeighNa runtime
+.vntrader/
+*.sqlite
+*.db
+
+# Visual Studio intermediate files
+*.exp
+*.iobj
+*.ipdb
+*.pdb
+
+# Documents
+_build/
+_static/
+_templates/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# vnpy upstream source (use pip-installed version instead)
+vnpy/
+
+# Node / frontend
+node_modules/
+
+# Mypy
+.mypy_cache/

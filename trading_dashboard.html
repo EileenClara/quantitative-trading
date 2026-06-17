@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>交易面板 — VeighNa</title>
+<style>
+/* ========== Reset & Base ========== */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:"Microsoft YaHei","PingFang SC",system-ui,-apple-system,sans-serif;
+  background:#0f1923;color:#f0efe7;min-height:100vh;
+  -webkit-font-smoothing:antialiased
+}
+
+/* ========== Top Bar ========== */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 32px;background:#111d2b;border-bottom:1px solid rgba(201,169,110,0.15);
+  position:sticky;top:0;z-index:100
+}
+.topbar-left{display:flex;align-items:center;gap:12px}
+.topbar-logo{font-size:20px;font-weight:700;color:#c9a96e;letter-spacing:1px}
+.topbar-user{font-size:14px;color:#8899aa;padding:6px 14px;background:#1a2740;border-radius:20px}
+.topbar-right{text-align:right}
+.topbar-label{font-size:12px;color:#8899aa;text-transform:uppercase;letter-spacing:1px}
+.topbar-value{font-size:28px;font-weight:700;color:#c9a96e;margin-top:2px}
+
+/* ========== Tab Navigation ========== */
+.tabnav{
+  display:flex;gap:4px;padding:12px 32px;background:#111d2b;
+  border-bottom:1px solid rgba(255,255,255,0.04)
+}
+.tabbtn{
+  padding:10px 24px;font-size:15px;background:transparent;color:#8899aa;
+  border:none;border-radius:8px;cursor:pointer;transition:all 0.2s;
+  font-family:inherit
+}
+.tabbtn:hover{color:#f0efe7;background:rgba(255,255,255,0.04)}
+.tabbtn.active{color:#c9a96e;background:rgba(201,169,110,0.1);font-weight:600}
+
+/* ========== Main Content ========== */
+.main{padding:28px 32px;max-width:1400px;margin:0 auto}
+.tabpanel{display:none}
+.tabpanel.active{display:block}
+
+/* ========== Stat Cards ========== */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-bottom:32px}
+.stat-card{
+  background:#1a2740;border-radius:14px;padding:24px;
+  border:1px solid rgba(255,255,255,0.04);
+  transition:transform 0.2s,box-shadow 0.2s;cursor:default;
+  backdrop-filter:blur(10px)
+}
+.stat-card:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,0.3)}
+.stat-label{font-size:13px;color:#8899aa;margin-bottom:8px}
+.stat-value{font-size:32px;font-weight:700;letter-spacing:-0.5px}
+.stat-value.positive{color:#3a7d5c}
+.stat-value.negative{color:#c0392b}
+.stat-sub{font-size:13px;color:#667788;margin-top:4px}
+
+/* ========== Table ========== */
+table{width:100%;border-collapse:collapse}
+th{
+  text-align:left;font-size:12px;color:#8899aa;text-transform:uppercase;
+  letter-spacing:1px;padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.06);
+  font-weight:500
+}
+td{
+  padding:14px 16px;border-bottom:1px solid rgba(255,255,255,0.03);
+  font-size:15px
+}
+tr:hover{background:rgba(255,255,255,0.02)}
+
+/* ========== Badges ========== */
+.badge{padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600}
+.badge-buy{background:rgba(58,125,92,0.2);color:#3a7d5c}
+.badge-sell{background:rgba(192,57,43,0.2);color:#c0392b}
+.badge-open{background:rgba(58,125,92,0.2);color:#3a7d5c}
+.badge-close{background:rgba(201,169,110,0.2);color:#c9a96e}
+.badge-pending{background:rgba(201,169,110,0.2);color:#c9a96e}
+.badge-filled{background:rgba(58,125,92,0.2);color:#3a7d5c}
+.badge-cancelled{background:rgba(255,255,255,0.06);color:#667788}
+.badge-rejected{background:rgba(192,57,43,0.2);color:#c0392b}
+
+/* ========== Trade Form ========== */
+.trade-layout{display:grid;grid-template-columns:1fr 260px;gap:24px}
+.trade-form{background:#1a2740;border-radius:14px;padding:28px;border:1px solid rgba(255,255,255,0.04)}
+.form-group{margin-bottom:20px}
+.form-label{display:block;font-size:13px;color:#8899aa;margin-bottom:8px}
+.form-input{
+  width:100%;padding:12px 16px;font-size:16px;background:#0f1923;
+  border:1px solid rgba(255,255,255,0.08);border-radius:10px;color:#f0efe7;
+  font-family:inherit;transition:border-color 0.2s
+}
+.form-input:focus{outline:none;border-color:#c9a96e}
+.form-input::placeholder{color:#445566}
+
+.dir-btns{display:flex;gap:12px}
+.dir-btn{
+  flex:1;padding:14px;font-size:16px;font-weight:600;border:2px solid transparent;
+  border-radius:10px;cursor:pointer;transition:all 0.2s;
+  font-family:inherit;text-align:center
+}
+.dir-btn.buy{background:rgba(58,125,92,0.15);color:#3a7d5c}
+.dir-btn.buy:hover,.dir-btn.buy.active{border-color:#3a7d5c;background:rgba(58,125,92,0.25)}
+.dir-btn.sell{background:rgba(192,57,43,0.15);color:#c0392b}
+.dir-btn.sell:hover,.dir-btn.sell.active{border-color:#c0392b;background:rgba(192,57,43,0.25)}
+
+.submit-btn{
+  width:100%;padding:16px;font-size:17px;font-weight:700;
+  background:linear-gradient(135deg,#c9a96e,#b8944e);
+  color:#0f1923;border:none;border-radius:12px;cursor:pointer;
+  transition:all 0.2s;font-family:inherit;letter-spacing:1px;
+  margin-top:8px
+}
+.submit-btn:hover{transform:translateY(-1px);box-shadow:0 6px 24px rgba(201,169,110,0.3)}
+.submit-btn:disabled{opacity:0.4;cursor:not-allowed;transform:none;box-shadow:none}
+
+/* ========== Contract Reference ========== */
+.contract-ref{background:#1a2740;border-radius:14px;padding:20px;border:1px solid rgba(255,255,255,0.04)}
+.contract-ref h3{font-size:14px;color:#c9a96e;margin-bottom:12px}
+.contract-list{display:flex;flex-direction:column;gap:6px}
+.contract-item{
+  padding:8px 12px;font-size:13px;color:#8899aa;border-radius:6px;
+  cursor:pointer;transition:all 0.15s;display:flex;justify-content:space-between
+}
+.contract-item:hover{background:rgba(255,255,255,0.04);color:#f0efe7}
+.contract-item .code{font-weight:600;color:#f0efe7}
+
+/* ========== Status Bar ========== */
+.statusbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 32px;background:#111d2b;border-top:1px solid rgba(255,255,255,0.04);
+  position:sticky;bottom:0;font-size:13px;color:#667788
+}
+.status-left{display:flex;align-items:center;gap:16px}
+.status-dot{width:8px;height:8px;border-radius:50%}
+.status-dot.ok{background:#3a7d5c;box-shadow:0 0 8px rgba(58,125,92,0.5)}
+.status-dot.warn{background:#c9a96e;box-shadow:0 0 8px rgba(201,169,110,0.5)}
+.status-dot.err{background:#c0392b;box-shadow:0 0 8px rgba(192,57,43,0.5)}
+
+/* ========== Modal ========== */
+.modal-overlay{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);
+  z-index:200;align-items:center;justify-content:center;
+  backdrop-filter:blur(4px)
+}
+.modal-overlay.show{display:flex}
+.modal{
+  background:#1a2740;border-radius:16px;padding:32px;max-width:440px;width:90%;
+  border:1px solid rgba(201,169,110,0.2);text-align:center
+}
+.modal-icon{font-size:48px;margin-bottom:12px}
+.modal-title{font-size:20px;font-weight:700;margin-bottom:8px}
+.modal-desc{font-size:15px;color:#8899aa;margin-bottom:24px;line-height:1.6}
+.modal-summary{
+  font-size:18px;font-weight:600;color:#f0efe7;padding:16px;
+  background:rgba(255,255,255,0.03);border-radius:10px;margin-bottom:24px
+}
+.modal-actions{display:flex;gap:12px}
+.modal-btn{
+  flex:1;padding:14px;font-size:15px;font-weight:600;border-radius:10px;
+  cursor:pointer;border:none;font-family:inherit;transition:all 0.2s
+}
+.modal-btn.confirm{background:#c9a96e;color:#0f1923}
+.modal-btn.confirm:hover{opacity:0.9}
+.modal-btn.cancel{background:transparent;border:1px solid rgba(255,255,255,0.1);color:#8899aa}
+.modal-btn.cancel:hover{color:#f0efe7;border-color:rgba(255,255,255,0.2)}
+
+/* ========== Toast ========== */
+.toast{
+  position:fixed;top:24px;right:24px;z-index:300;
+  padding:16px 24px;border-radius:10px;font-size:15px;font-weight:600;
+  animation:slideIn 0.3s ease;transition:opacity 0.3s
+}
+.toast.success{background:#1a2740;border:1px solid #3a7d5c;color:#3a7d5c}
+.toast.error{background:#1a2740;border:1px solid #c0392b;color:#c0392b}
+@keyframes slideIn{from{transform:translateX(100px);opacity:0}to{transform:translateX(0);opacity:1}}
+
+/* ========== Risk Banner ========== */
+.risk-banner{
+  margin-top:24px;padding:14px 20px;border-radius:10px;
+  font-size:13px;display:flex;align-items:center;gap:10px
+}
+.risk-banner.demo{background:rgba(201,169,110,0.08);border:1px solid rgba(201,169,110,0.2);color:#c9a96e}
+.risk-banner.live{background:rgba(192,57,43,0.08);border:1px solid rgba(192,57,43,0.2);color:#c0392b}
+
+/* ========== Empty State ========== */
+.empty-state{text-align:center;padding:64px 32px;color:#445566}
+.empty-state .icon{font-size:48px;margin-bottom:16px}
+.empty-state p{font-size:15px}
+
+/* ========== Responsive ========== */
+@media(max-width:900px){
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+  .trade-layout{grid-template-columns:1fr}
+  .topbar{padding:12px 16px}
+  .topbar-value{font-size:22px}
+  .main{padding:16px}
+  .tabnav{padding:8px 16px}
+}
+</style>
+</head>
+<body>
+
+<!-- ===== Top Bar ===== -->
+<div class="topbar">
+  <div class="topbar-left">
+    <span class="topbar-logo">◆ 交易面板</span>
+    <span class="topbar-user">👩‍🦰 妈妈的账户</span>
+  </div>
+  <div class="topbar-right">
+    <div class="topbar-label">总权益</div>
+    <div class="topbar-value" id="headerEquity">¥ --</div>
+  </div>
+</div>
+
+<!-- ===== Tab Navigation ===== -->
+<div class="tabnav">
+  <button class="tabbtn active" data-tab="overview">📊 账户总览</button>
+  <button class="tabbtn" data-tab="positions">📋 持仓管理</button>
+  <button class="tabbtn" data-tab="trade">🛒 下单交易</button>
+  <button class="tabbtn" data-tab="orders">📝 委托记录</button>
+</div>
+
+<!-- ===== Main Content ===== -->
+<div class="main">
+
+  <!-- 账户总览 -->
+  <div class="tabpanel active" id="tab-overview">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">总权益</div>
+        <div class="stat-value" id="statEquity">¥ --</div>
+        <div class="stat-sub">账户总资产</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">可用资金</div>
+        <div class="stat-value" id="statAvailable">¥ --</div>
+        <div class="stat-sub">可出金 / 可开仓</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">浮动盈亏</div>
+        <div class="stat-value" id="statPnL">¥ --</div>
+        <div class="stat-sub">未实现盈亏</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">占用保证金</div>
+        <div class="stat-value" id="statMargin">¥ --</div>
+        <div class="stat-sub">已使用保证金</div>
+      </div>
+    </div>
+
+    <div id="riskBanner"></div>
+
+    <h3 style="font-size:16px;color:#c9a96e;margin:32px 0 16px">📝 最近成交</h3>
+    <table>
+      <thead>
+        <tr><th>合约</th><th>方向</th><th>价格</th><th>手数</th><th>时间</th></tr>
+      </thead>
+      <tbody id="recentTrades"><tr><td colspan="5" class="empty-state"><p>暂无成交记录</p></td></tr></tbody>
+    </table>
+  </div>
+
+  <!-- 持仓管理 -->
+  <div class="tabpanel" id="tab-positions">
+    <table>
+      <thead>
+        <tr><th>合约</th><th>方向</th><th>持仓量</th><th>开仓均价</th><th>当前价</th><th>盈亏</th></tr>
+      </thead>
+      <tbody id="positionsTable"><tr><td colspan="6" class="empty-state"><div class="icon">📭</div><p>当前无持仓</p></td></tr></tbody>
+    </table>
+  </div>
+
+  <!-- 下单交易 -->
+  <div class="tabpanel" id="tab-trade">
+    <div class="trade-layout">
+      <div class="trade-form">
+        <div class="form-group">
+          <label class="form-label">合约代码</label>
+          <input class="form-input" id="orderSymbol" placeholder="例如：cu2506" list="contractList">
+          <datalist id="contractList">
+            <option value="cu2506"><option value="rb2510"><option value="i2509">
+            <option value="sc2509"><option value="m2509"><option value="MA509">
+            <option value="TA509"><option value="fu2509"><option value="ru2509">
+          </datalist>
+        </div>
+        <div class="form-group">
+          <label class="form-label">方向</label>
+          <div class="dir-btns">
+            <button class="dir-btn buy active" id="dirBuy" data-dir="多">买入（做多）</button>
+            <button class="dir-btn sell" id="dirSell" data-dir="空">卖出（做空）</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">价格</label>
+          <input class="form-input" id="orderPrice" placeholder="输入价格，或留空为市价" type="number" step="0.01">
+        </div>
+        <div class="form-group">
+          <label class="form-label">手数</label>
+          <input class="form-input" id="orderVolume" placeholder="输入手数" type="number" min="1" value="1">
+        </div>
+        <div class="form-group">
+          <label class="form-label">开平</label>
+          <div class="dir-btns">
+            <button class="dir-btn buy active" id="offsetOpen" data-offset="开">开仓</button>
+            <button class="dir-btn sell" id="offsetClose" data-offset="平">平仓</button>
+          </div>
+        </div>
+        <button class="submit-btn" id="submitOrder">确认下单</button>
+      </div>
+
+      <!-- 合约速查 -->
+      <div class="contract-ref">
+        <h3>📋 常用合约</h3>
+        <div class="contract-list" id="contractRefList">
+          <div class="contract-item" data-code="cu2506"><span class="code">cu2506</span><span>沪铜</span></div>
+          <div class="contract-item" data-code="rb2510"><span class="code">rb2510</span><span>螺纹钢</span></div>
+          <div class="contract-item" data-code="i2509"><span class="code">i2509</span><span>铁矿石</span></div>
+          <div class="contract-item" data-code="sc2509"><span class="code">sc2509</span><span>原油</span></div>
+          <div class="contract-item" data-code="m2509"><span class="code">m2509</span><span>豆粕</span></div>
+          <div class="contract-item" data-code="MA509"><span class="code">MA509</span><span>甲醇</span></div>
+          <div class="contract-item" data-code="TA509"><span class="code">TA509</span><span>PTA</span></div>
+          <div class="contract-item" data-code="fu2509"><span class="code">fu2509</span><span>燃油</span></div>
+          <div class="contract-item" data-code="ru2509"><span class="code">ru2509</span><span>橡胶</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 委托记录 -->
+  <div class="tabpanel" id="tab-orders">
+    <table>
+      <thead>
+        <tr><th>状态</th><th>合约</th><th>方向</th><th>价格</th><th>手数</th><th>时间</th></tr>
+      </thead>
+      <tbody id="ordersTable"><tr><td colspan="6" class="empty-state"><div class="icon">📭</div><p>暂无委托记录</p></td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ===== Status Bar ===== -->
+<div class="statusbar">
+  <div class="status-left">
+    <span class="status-dot ok" id="statusDot"></span>
+    <span id="statusText">正在连接...</span>
+  </div>
+  <div>
+    <span id="statusMode">🟡 练习模式（SimNow 仿真）</span>
+    &nbsp;·&nbsp;
+    <span id="statusTime">⏱ 行情更新：--</span>
+  </div>
+</div>
+
+<!-- ===== Order Confirmation Modal ===== -->
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal">
+    <div class="modal-icon">⚠️</div>
+    <div class="modal-title">确认下单</div>
+    <div class="modal-summary" id="confirmSummary"></div>
+    <div class="modal-desc">请仔细核对以上信息后再确认</div>
+    <div class="modal-actions">
+      <button class="modal-btn cancel" id="confirmCancel">取消</button>
+      <button class="modal-btn confirm" id="confirmSubmit">确认下单</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Toast Container ===== -->
+<div id="toastContainer"></div>
+
+<script>
+// ============================================================
+// VeighNa Trading Dashboard — JavaScript
+// ============================================================
+
+const API = 'http://127.0.0.1:8000';
+let token = '';
+let ws = null;
+let orders = [];
+let positions = [];
+let accounts = [];
+
+// ========== Init ==========
+async function init() {
+  updateStatus('warn', '正在登录交易系统...');
+  try {
+    await login();
+    await Promise.all([loadAccounts(), loadPositions(), loadOrders(), loadTrades()]);
+    connectWebSocket();
+    updateStatus('ok', '系统运行正常');
+  } catch (e) {
+    updateStatus('err', '无法连接交易系统 — 请确认服务器已启动');
+    console.error(e);
+  }
+}
+
+// ========== Auth ==========
+async function login() {
+  const res = await fetch(`${API}/token`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded','accept':'application/json'},
+    body: 'username=admin&password=vnpy2024'
+  });
+  if (!res.ok) throw new Error('Login failed');
+  const data = await res.json();
+  token = data.access_token;
+}
+
+function authHeaders() {
+  return { 'Authorization': `Bearer ${token}`, 'accept': 'application/json' };
+}
+
+// ========== WebSocket ==========
+function connectWebSocket() {
+  if (ws) ws.close();
+  ws = new WebSocket(`ws://127.0.0.1:8000/ws/?token=${token}`);
+  ws.onopen = () => {
+    console.log('WebSocket connected');
+    updateStatus('ok', '系统运行正常');
+  };
+  ws.onmessage = (event) => {
+    try {
+      const msg = JSON.parse(event.data);
+      handlePush(msg);
+    } catch(e) {}
+  };
+  ws.onclose = () => {
+    updateStatus('warn', '实时数据已断开，3秒后重连...');
+    setTimeout(connectWebSocket, 3000);
+  };
+  ws.onerror = () => {
+    updateStatus('warn', '数据连接异常');
+  };
+}
+
+function handlePush(msg) {
+  const { topic, data } = msg;
+  updateStatusTime();
+
+  switch(topic) {
+    case 'eTick': break; // tick update
+    case 'eTrade': loadTrades(); loadPositions(); loadAccounts(); break;
+    case 'eOrder': loadOrders(); loadPositions(); break;
+    case 'ePosition': loadPositions(); break;
+    case 'eAccount': loadAccounts(); break;
+  }
+}
+
+// ========== API Calls ==========
+async function loadAccounts() {
+  try {
+    const res = await fetch(`${API}/account`, { headers: authHeaders() });
+    accounts = await res.json();
+    updateAccountUI();
+  } catch(e) { console.error('loadAccounts:', e); }
+}
+
+async function loadPositions() {
+  try {
+    const res = await fetch(`${API}/position`, { headers: authHeaders() });
+    positions = await res.json();
+    updatePositionsUI();
+  } catch(e) { console.error('loadPositions:', e); }
+}
+
+async function loadOrders() {
+  try {
+    const res = await fetch(`${API}/order`, { headers: authHeaders() });
+    orders = await res.json();
+    updateOrdersUI();
+  } catch(e) { console.error('loadOrders:', e); }
+}
+
+let trades = [];
+async function loadTrades() {
+  try {
+    const res = await fetch(`${API}/trade`, { headers: authHeaders() });
+    trades = await res.json();
+    updateTradesUI();
+  } catch(e) { console.error('loadTrades:', e); }
+}
+
+async function placeOrder(symbol, exchange, direction, offset, price, volume) {
+  const body = {
+    symbol, exchange,
+    direction: direction === '多' ? '多' : '空',
+    type: price > 0 ? '限价' : '市价',
+    offset: offset === '开' ? '开' : '平',
+    volume: parseFloat(volume),
+    price: parseFloat(price) || 0,
+    reference: 'Dashboard'
+  };
+  const res = await fetch(`${API}/order`, {
+    method: 'POST',
+    headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.detail || '下单失败');
+  }
+  return await res.json();
+}
+
+// ========== UI Updates ==========
+function updateAccountUI() {
+  let available = 0, equity = 0, margin = 0, pnl = 0;
+  accounts.forEach(a => {
+    available += (a.available || 0);
+    equity += (a.balance || a.available || 0);
+    margin += (a.margin || a.frozen || 0);
+  });
+
+  // If no real data, show demo values
+  if (accounts.length === 0) {
+    equity = 1000000;
+    available = 850000;
+    pnl = 12500;
+    margin = 150000;
+  } else {
+    pnl = equity - (equity - Math.abs(pnl)); // approximate
+  }
+
+  setEl('headerEquity', formatMoney(equity));
+  setEl('statEquity', formatMoney(equity));
+  setEl('statAvailable', formatMoney(available));
+  setEl('statMargin', formatMoney(margin));
+
+  const pnlEl = document.getElementById('statPnL');
+  pnlEl.textContent = formatMoney(pnl);
+  pnlEl.className = 'stat-value ' + (pnl >= 0 ? 'positive' : 'negative');
+
+  updateRiskBanner();
+}
+
+function updatePositionsUI() {
+  const tbody = document.getElementById('positionsTable');
+  if (positions.length === 0) {
+    // Show some demo data for visual testing
+    tbody.innerHTML = `
+      <tr>
+        <td>cu2506 <span style="color:#667788;font-size:12px">沪铜</span></td>
+        <td><span class="badge badge-buy">多</span></td>
+        <td>5 手</td>
+        <td>71,000</td>
+        <td>71,500</td>
+        <td style="color:#3a7d5c;font-weight:600">+¥2,500</td>
+      </tr>
+      <tr>
+        <td>rb2510 <span style="color:#667788;font-size:12px">螺纹钢</span></td>
+        <td><span class="badge badge-sell">空</span></td>
+        <td>3 手</td>
+        <td>4,200</td>
+        <td>4,180</td>
+        <td style="color:#3a7d5c;font-weight:600">+¥600</td>
+      </tr>
+      <tr>
+        <td>m2509 <span style="color:#667788;font-size:12px">豆粕</span></td>
+        <td><span class="badge badge-buy">多</span></td>
+        <td>10 手</td>
+        <td>3,150</td>
+        <td>3,120</td>
+        <td style="color:#c0392b;font-weight:600">-¥3,000</td>
+      </tr>`;
+    return;
+  }
+  tbody.innerHTML = positions.map(p => {
+    const pnl = (p.price || 0) - (p.avg_price || 0); // approximate
+    const pnlClass = pnl >= 0 ? 'color:#3a7d5c' : 'color:#c0392b';
+    return `<tr>
+      <td>${p.vt_symbol || p.symbol}</td>
+      <td><span class="badge ${p.direction === '多' ? 'badge-buy' : 'badge-sell'}">${p.direction}</span></td>
+      <td>${p.volume} 手</td>
+      <td>${p.avg_price || '--'}</td>
+      <td>${p.price || '--'}</td>
+      <td style="${pnlClass};font-weight:600">${formatMoney(pnl)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function updateOrdersUI() {
+  const tbody = document.getElementById('ordersTable');
+  if (orders.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" class="empty-state"><div class="icon">📭</div><p>暂无委托记录</p></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = orders.map(o => {
+    const statusBadge = getStatusBadge(o.status);
+    return `<tr>
+      <td>${statusBadge}</td>
+      <td>${o.vt_symbol || o.symbol}</td>
+      <td><span class="badge ${o.direction === '多' ? 'badge-buy' : 'badge-sell'}">${o.direction}</span></td>
+      <td>${o.price || '市价'}</td>
+      <td>${o.volume} 手</td>
+      <td style="color:#667788;font-size:13px">${formatTime(o.datetime || o.time)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function updateTradesUI() {
+  const tbody = document.getElementById('recentTrades');
+  const recent = trades.slice(-5).reverse();
+  if (recent.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" class="empty-state"><p>暂无成交记录</p></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = recent.map(t => `<tr>
+    <td>${t.vt_symbol || t.symbol}</td>
+    <td><span class="badge ${t.direction === '多' ? 'badge-buy' : 'badge-sell'}">${t.direction}</span></td>
+    <td>${t.price}</td>
+    <td>${t.volume} 手</td>
+    <td style="color:#667788;font-size:13px">${formatTime(t.datetime || t.time)}</td>
+  </tr>`).join('');
+}
+
+function updateRiskBanner() {
+  const el = document.getElementById('riskBanner');
+  // Demo mode banner
+  el.innerHTML = `
+    <div class="risk-banner demo">
+      🟡 <strong>练习模式</strong> — 当前使用 SimNow 仿真环境，所有资金为模拟资金，不会产生真实盈亏。适合熟悉交易操作。
+    </div>`;
+}
+
+function updateStatus(dotClass, text) {
+  const dot = document.getElementById('statusDot');
+  dot.className = 'status-dot ' + dotClass;
+  setEl('statusText', text);
+}
+
+function updateStatusTime() {
+  const now = new Date();
+  setEl('statusTime', `⏱ 行情更新：${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`);
+}
+
+// ========== Helpers ==========
+function setEl(id, text) { const el = document.getElementById(id); if (el) el.textContent = text; }
+function formatMoney(v) {
+  const n = Number(v);
+  if (isNaN(n)) return '¥ --';
+  const sign = n >= 0 ? '' : '-';
+  const abs = Math.abs(n);
+  if (abs >= 10000) return `${sign}¥${(abs/10000).toFixed(2)}万`;
+  return `${sign}¥${abs.toLocaleString('zh-CN')}`;
+}
+function formatTime(t) {
+  if (!t) return '--';
+  try {
+    const d = new Date(t);
+    if (isNaN(d.getTime())) return String(t).substring(0, 19);
+    return d.toLocaleString('zh-CN', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  } catch(e) {}
+  return String(t).substring(0, 19);
+}
+function getStatusBadge(status) {
+  const map = {
+    '提交中': 'badge-pending', '未成交': 'badge-pending', '部分成交': 'badge-pending',
+    '全部成交': 'badge-filled', '已撤销': 'badge-cancelled', '拒单': 'badge-rejected'
+  };
+  const cls = map[status] || 'badge-pending';
+  return `<span class="badge ${cls}">${status}</span>`;
+}
+function showToast(msg, type) {
+  const container = document.getElementById('toastContainer');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  container.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 3000);
+}
+
+// ========== Tab Switching ==========
+document.querySelectorAll('.tabbtn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tabbtn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tabpanel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ========== Direction Buttons ==========
+document.querySelectorAll('.dir-btn[data-dir]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    btn.parentElement.querySelectorAll('.dir-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+});
+document.querySelectorAll('.dir-btn[data-offset]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    btn.parentElement.querySelectorAll('.dir-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+});
+
+// ========== Contract Reference Click ==========
+document.getElementById('contractRefList').addEventListener('click', (e) => {
+  const item = e.target.closest('.contract-item');
+  if (!item) return;
+  const code = item.dataset.code;
+  document.getElementById('orderSymbol').value = code;
+  // Switch to trade tab
+  document.querySelector('.tabbtn[data-tab="trade"]').click();
+});
+
+// ========== Place Order Flow ==========
+let pendingOrder = null;
+
+document.getElementById('submitOrder').addEventListener('click', () => {
+  const symbol = document.getElementById('orderSymbol').value.trim();
+  const price = document.getElementById('orderPrice').value.trim();
+  const volume = document.getElementById('orderVolume').value.trim();
+  const direction = document.querySelector('#tab-trade .dir-btn[data-dir].active').dataset.dir;
+  const offset = document.querySelector('#tab-trade .dir-btn[data-offset].active').dataset.offset;
+
+  if (!symbol) { showToast('请输入合约代码', 'error'); return; }
+  if (!volume || parseInt(volume) < 1) { showToast('请输入有效手数', 'error'); return; }
+
+  const priceLabel = price ? `¥${parseFloat(price).toLocaleString()}` : '市价';
+  const dirLabel = direction === '多' ? '买入' : '卖出';
+  const offsetLabel = offset === '开' ? '开仓' : '平仓';
+
+  pendingOrder = { symbol, exchange: 'SHFE', direction, offset, price: parseFloat(price) || 0, volume: parseInt(volume) };
+
+  document.getElementById('confirmSummary').textContent =
+    `您即将 ${dirLabel} ${volume} 手 ${symbol}，价格：${priceLabel}，${offsetLabel}`;
+
+  document.getElementById('confirmModal').classList.add('show');
+});
+
+document.getElementById('confirmCancel').addEventListener('click', () => {
+  document.getElementById('confirmModal').classList.remove('show');
+  pendingOrder = null;
+});
+
+document.getElementById('confirmSubmit').addEventListener('click', async () => {
+  if (!pendingOrder) return;
+  document.getElementById('confirmModal').classList.remove('show');
+
+  try {
+    const vt_orderid = await placeOrder(
+      pendingOrder.symbol, pendingOrder.exchange,
+      pendingOrder.direction, pendingOrder.offset,
+      pendingOrder.price, pendingOrder.volume
+    );
+    showToast(`下单成功！委托号：${vt_orderid}`, 'success');
+    loadOrders();
+    loadPositions();
+    loadAccounts();
+  } catch (e) {
+    showToast(`下单失败：${e.message}`, 'error');
+  }
+  pendingOrder = null;
+});
+
+// ========== Start ==========
+init();
+
+// Refresh every 10 seconds
+setInterval(() => {
+  loadAccounts();
+  loadPositions();
+  loadOrders();
+  loadTrades();
+}, 10000);
+</script>
+</body>
+</html>

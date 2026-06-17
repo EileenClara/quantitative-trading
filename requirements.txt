@@ -1,0 +1,18 @@
+# VeighNa 核心框架
+vnpy>=4.4.0
+
+# 交易接口
+vnpy_ctp>=6.7.0           # CTP 期货交易接口（SimNow 仿真/实盘）
+
+# 策略模块
+vnpy_ctastrategy>=1.4.0   # CTA 策略引擎
+vnpy_ctabacktester>=1.3.0 # CTA 策略回测
+vnpy_datamanager>=1.2.0   # 历史数据管理
+
+# 仿真与 RPC
+vnpy_paperaccount>=1.0.0  # 本地虚拟账户（仿真撮合）
+vnpy_rpcservice>=1.1.0    # RPC 分布式服务
+vnpy_webtrader>=1.1.0     # Web 交易服务器（REST API + WebSocket）
+
+# 数据库
+vnpy_sqlite>=1.1.0        # SQLite 数据库驱动

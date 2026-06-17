@@ -1,0 +1,6 @@
+{
+    "username": "admin",
+    "password": "vnpy2024",
+    "req_address": "tcp://127.0.0.1:2014",
+    "sub_address": "tcp://127.0.0.1:4102"
+}
