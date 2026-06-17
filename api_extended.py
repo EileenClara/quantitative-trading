@@ -93,9 +93,13 @@ def list_strategies(access: bool = Depends(ext_auth)):
 def list_strategy_classes(access: bool = Depends(ext_auth)):
     """可用策略类型"""
     try:
-        return get_client().rpc_get_strategy_classes()
+        result = get_client().rpc_get_strategy_classes()
+        if result and len(result) > 0:
+            return result
+        # RPC 返回空（策略未加载），使用降级数据
     except Exception:
-        return [
+        pass
+    return [
             {"class_name": "DoubleMaStrategy", "display_name": "双均线策略",
              "description": "快线（短期均线）上穿慢线（长期均线）时买入做多，下穿时卖出做空。最经典的顺势跟踪策略。",
              "scenario": "适合有明显趋势的品种，如螺纹钢、铁矿石。震荡市中信号较多容易亏损。",
@@ -198,9 +202,32 @@ def list_algos(access: bool = Depends(ext_auth)):
 @router.get("/algo-templates")
 def list_algo_templates(access: bool = Depends(ext_auth)):
     try:
-        return get_client().rpc_get_algo_templates()
+        result = get_client().rpc_get_algo_templates()
+        if result and len(result) > 0:
+            # 给引擎返回的数据补上中文描述
+            desc_map = {
+                "TwapAlgo": {"display_name": "TWAP 时间加权均价", "description": "在设定时间内把大单拆分成无数小单均匀下单，成交价接近市场均价。",
+                             "scenario": "适合需要一次性买卖大量合约但不想惊动市场。如买入100手沪铜悄悄分批买。"},
+                "IcebergAlgo": {"display_name": "Iceberg 冰山指令", "description": "每次只显示一小部分挂单量，成交后再自动补上。别人只能看到「冰山一角」。",
+                                "scenario": "适合不想让市场知道真实交易量，保护隐私。"},
+                "SniperAlgo": {"display_name": "Sniper 狙击手", "description": "被动等待对手盘出现，一旦有对手价立即成交。不主动追价。",
+                               "scenario": "适合不急于成交、想拿到好价格。如挂71000买入沪铜等着。"},
+                "BestLimitAlgo": {"display_name": "BestLimit 最优限价", "description": "持续追踪盘口最优买卖价，自动把限价单调整到买一/卖一位置。",
+                                  "scenario": "适合想用限价成交但不想手动反复改价。"},
+            }
+            for t in result:
+                name = t.get("name", "")
+                if name in desc_map:
+                    if "display_name" not in t or not t["display_name"]:
+                        t["display_name"] = desc_map[name]["display_name"]
+                    if "description" not in t or not t.get("description"):
+                        t["description"] = desc_map[name]["description"]
+                    if "scenario" not in t or not t.get("scenario"):
+                        t["scenario"] = desc_map[name]["scenario"]
+            return result
     except Exception:
-        return [
+        pass
+    return [
             {"name": "TwapAlgo", "display_name": "TWAP 时间加权均价",
              "description": "在设定时间内（默认10分钟），把大单拆分成无数小单均匀下单。成交价接近市场均价，大单冲击小。",
              "scenario": "适合需要一次性买卖大量合约但不想惊动市场的场景。比如妈妈想买入100手沪铜，用TWAP悄悄分批买入。",
