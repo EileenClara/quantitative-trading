@@ -1,10 +1,10 @@
-#  VeighNa 量化交易平台 — 妈妈版 v2.0
+#  VeighNa 量化交易平台 — 妈妈版 v2.1
 
 > 基于 [VeighNa](https://github.com/vnpy/vnpy) 构建的量化交易 Web 平台。浏览器即用，深色高级 UI。
 > CTP 期货仿真 + 策略管理 + 算法交易 + 风控 + K 线图表 + 策略回测。
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-2.0-blueviolet.svg"/>
+  <img src="https://img.shields.io/badge/version-2.1-blueviolet.svg"/>
   <img src="https://img.shields.io/badge/python-3.10|3.11|3.12|3.13-blue.svg"/>
   <img src="https://img.shields.io/badge/platform-windows|linux|macos-yellow.svg"/>
   <img src="https://img.shields.io/badge/license-MIT-orange.svg"/>
@@ -14,7 +14,7 @@
 
 ##  特性
 
-- **浏览交易面板** — 9 个标签页，覆盖完整量化交易流程
+-  **11 个标签页** — 覆盖完整量化交易流程
 -  **账户总览** — 总权益/可用资金/浮动盈亏/占用保证金，实时卡片
 -  **持仓管理** — 合约/方向/持仓量/开仓价/当前价/盈亏，红绿标识
 -  **一键下单** — 合约速查 + 买卖按钮 + 市价/限价 + 开平，确认弹窗
@@ -22,8 +22,10 @@
 -  **CTA 策略管理** — 8 种内置策略，动态参数表单，一键启停
 -  **算法交易** — TWAP/Iceberg/Sniper/BestLimit，自动拆单执行
 -  **风控管理** — 5 条风控规则，开关控制 + 限值设置
--  **K 线图表** — 蜡烛图 + MA5/10/20/60 + 成交量 + 画线工具 + 缩放平移
--  **策略回测** — 双均线回测，权益曲线，收益率/回撤/胜率统计
+-  **K 线图表** — 蜡烛图 + MA5/10/20/60 + 成交量 + 画线工具
+-  **策略回测** — VN.PY 原装引擎 + CSV 降级，权益曲线/收益率/回撤/胜率
+-  **数据管理** — 数据概览 + CSV 导入导出数据库
+-  **行情录制** — 实时录制合约 K 线到数据库
 -  **数据下载** — AKShare 免费下载 16 个期货品种 3 年日线数据
 -  **纯模拟** — SimNow 仿真 2000 万 + PaperAccount 100 万，零风险练手
 
