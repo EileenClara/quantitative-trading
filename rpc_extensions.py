@@ -36,6 +36,9 @@ def register_extensions(
     cta_engine = _get_engine(main_engine, "CtaStrategy")
     algo_engine = _get_engine(main_engine, "AlgoTrading")
     risk_engine = _get_engine(main_engine, "RiskManager")
+    backtester_engine = _get_engine(main_engine, "CtaBacktester")
+    data_engine = _get_engine(main_engine, "DataManager")
+    recorder_engine = _get_engine(main_engine, "DataRecorder")
 
     # ====== CTA 策略引擎 ======
     if cta_engine:
@@ -214,6 +217,80 @@ def register_extensions(
         rpc_server.register(rpc_get_risk_rule_names)
         rpc_server.register(rpc_update_risk_rule)
         rpc_server.register(rpc_add_risk_rule)
+
+    # ====== CTA 回测引擎 ======
+    if backtester_engine:
+        def rpc_start_backtesting(strategy_class: str, vt_symbol: str, interval: str,
+                                   start: str, end: str, capital: int, setting: dict) -> dict:
+            backtester_engine.init_datafeed()
+            backtester_engine.load_strategy_class_from_module(strategy_class)
+            c = backtester_engine.strategy_class
+            backtester_engine.start_backtesting(c, vt_symbol, interval, start, end, 0.0, 0.0, 10, 1, capital, setting)
+            stats = backtester_engine.get_result_statistics()
+            df = backtester_engine.get_result_df()
+            return {
+                "statistics": stats,
+                "curve": [{"date": str(i), "equity": float(df["balance"].iloc[i])}
+                          for i in range(len(df))] if df is not None else [],
+            }
+
+        def rpc_get_backtest_data(vt_symbol: str, interval: str, start: str, end: str) -> list:
+            backtester_engine.init_datafeed()
+            data = backtester_engine.get_history_data(vt_symbol, interval, start, end)
+            return [{"date": str(d.datetime), "open": d.open_price, "high": d.high_price,
+                     "low": d.low_price, "close": d.close_price, "volume": d.volume} for d in data]
+
+        rpc_server.register(rpc_start_backtesting)
+        rpc_server.register(rpc_get_backtest_data)
+
+    # ====== 数据管理引擎 ======
+    if data_engine:
+        def rpc_get_bar_overview() -> list:
+            return data_engine.get_bar_overview()
+
+        def rpc_import_csv(filepath: str, symbol: str, exchange: str, interval: str,
+                           start: str, end: str) -> str:
+            data_engine.import_data_from_csv(filepath, symbol, exchange, interval, start, end)
+            return f"导入 {symbol} 数据完成"
+
+        def rpc_export_csv(filepath: str, symbol: str, exchange: str, interval: str,
+                           start: str, end: str) -> str:
+            data_engine.output_data_to_csv(filepath, symbol, exchange, interval, start, end)
+            return f"导出 {symbol} 数据到 {filepath}"
+
+        def rpc_delete_bar(symbol: str, exchange: str, interval: str) -> str:
+            data_engine.delete_bar_data(symbol, exchange, interval)
+            return f"删除 {symbol} 数据完成"
+
+        rpc_server.register(rpc_get_bar_overview)
+        rpc_server.register(rpc_import_csv)
+        rpc_server.register(rpc_export_csv)
+        rpc_server.register(rpc_delete_bar)
+
+    # ====== 行情录制引擎 ======
+    if recorder_engine:
+        def rpc_start_recording(vt_symbols: str) -> str:
+            symbols = [s.strip() for s in vt_symbols.split(",") if s.strip()]
+            for sym in symbols:
+                if "." in sym:
+                    s, e = sym.split(".")
+                    recorder_engine.add_bar_recording(s, e)
+            return f"已开始录制 {len(symbols)} 个合约"
+
+        def rpc_stop_recording(vt_symbols: str) -> str:
+            symbols = [s.strip() for s in vt_symbols.split(",") if s.strip()]
+            for sym in symbols:
+                if "." in sym:
+                    s, e = sym.split(".")
+                    recorder_engine.remove_bar_recording(s, e)
+            return f"已停止录制 {len(symbols)} 个合约"
+
+        def rpc_get_recording_status() -> list:
+            return list(recorder_engine.bar_recordings.keys()) if hasattr(recorder_engine, 'bar_recordings') else []
+
+        rpc_server.register(rpc_start_recording)
+        rpc_server.register(rpc_stop_recording)
+        rpc_server.register(rpc_get_recording_status)
 
 
 def _load_builtin_strategies(cta_engine: Any) -> None:

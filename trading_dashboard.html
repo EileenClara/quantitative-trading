@@ -162,6 +162,8 @@ select.finput{cursor:pointer}
   <button class="tab qt" data-tab="risk">风控管理</button>
   <button class="tab" data-tab="chart">K线图表</button>
   <button class="tab" data-tab="backtest">策略回测</button>
+  <button class="tab" data-tab="data">数据管理</button>
+  <button class="tab" data-tab="record">行情录制</button>
 </div>
 
 <!-- Main -->
@@ -239,16 +241,47 @@ select.finput{cursor:pointer}
   <!-- Backtest -->
   <div class="panel" id="p-backtest">
     <div class="g2">
-      <div class="c-card"><h3>双均线回测</h3>
+      <div class="c-card"><h3>CTA 策略回测</h3>
+        <div class="fgroup"><label class="flabel">策略</label><select class="finput" id="btStrategy"><option value="DoubleMaStrategy">双均线策略</option></select></div>
         <div class="fgroup"><label class="flabel">品种</label><select class="finput" id="btSymbol"></select></div>
-        <div class="fgroup"><label class="flabel">快线周期</label><input class="finput" id="btFast" type="number" value="5"></div>
-        <div class="fgroup"><label class="flabel">慢线周期</label><input class="finput" id="btSlow" type="number" value="20"></div>
+        <div class="fgroup"><label class="flabel">周期</label><select class="finput" id="btInterval"><option value="d">日线</option><option value="1h">1小时</option></select></div>
+        <div class="fgroup"><label class="flabel">起始日期</label><input class="finput" id="btStart" value="2023-06-01"></div>
+        <div class="fgroup"><label class="flabel">结束日期</label><input class="finput" id="btEnd" value="2026-06-18"></div>
         <div class="fgroup"><label class="flabel">初始资金</label><input class="finput" id="btCapital" type="number" value="100000"></div>
         <button class="btn btn-g" onclick="runBacktest()" style="width:100%">开始回测</button>
       </div>
       <div class="c-card"><h3>回测结果</h3><div id="btResult"><p style="color:#667788">选择参数后点击开始回测</p></div></div>
     </div>
     <div class="c-card"><h3>权益曲线</h3><div id="btChart" style="height:380px"></div></div>
+  </div>
+
+  <!-- Data Manager -->
+  <div class="panel" id="p-data">
+    <div class="c-card"><h3>数据概览</h3><div id="dataOverview"><p style="color:#667788">加载中...</p></div></div>
+    <div class="g2">
+      <div class="c-card"><h3>导入数据</h3>
+        <div class="fgroup"><label class="flabel">合约</label><input class="finput" id="diSymbol" placeholder="如 CU"></div>
+        <div class="fgroup"><label class="flabel">交易所</label><select class="finput" id="diExchange"><option value="SHFE">上期所</option><option value="DCE">大商所</option><option value="ZCE">郑商所</option><option value="CFFEX">中金所</option><option value="INE">能源中心</option></select></div>
+        <button class="btn btn-b" onclick="importData()">从本地 CSV 导入</button>
+      </div>
+      <div class="c-card"><h3>导出数据</h3>
+        <div class="fgroup"><label class="flabel">合约</label><input class="finput" id="deSymbol" placeholder="如 CU"></div>
+        <div class="fgroup"><label class="flabel">交易所</label><select class="finput" id="deExchange"><option value="SHFE">上期所</option><option value="DCE">大商所</option></select></div>
+        <button class="btn btn-h" onclick="exportData()">导出到 CSV</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Data Recorder -->
+  <div class="panel" id="p-record">
+    <div class="c-card"><h3>行情录制</h3>
+      <div class="fgroup"><label class="flabel">合约列表（逗号分隔）</label><input class="finput" id="recSymbols" placeholder="如 CU.SHFE,RB.SHFE" list="contractDL"></div>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-r" onclick="recorderAct('start')">开始录制</button>
+        <button class="btn btn-e" onclick="recorderAct('stop')">停止录制</button>
+      </div>
+      <div id="recStatus" style="margin-top:14px"><p style="color:#667788">点击开始录制，实时行情将存入数据库供回测使用</p></div>
+    </div>
   </div>
 
 </div>
@@ -374,6 +407,8 @@ function switchTab(name){
   if(name==='risk') loadRiskRules();
   if(name==='chart') loadChartList();
   if(name==='backtest') loadChartList();
+  if(name==='data') loadDataOverview();
+  if(name==='record') loadRecorderStatus();
 }
 document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>switchTab(b.dataset.tab)));
 
@@ -622,19 +657,62 @@ async function loadChart(){
 
 // ===== Backtest =====
 async function runBacktest(){
-  const sym=$('btSymbol').value||'CU',fast=$('btFast').value||5,slow=$('btSlow').value||20,capital=$('btCapital').value||100000;
-  const r=await apiPost('/api/ext/backtest',{symbol:sym,fast:parseInt(fast),slow:parseInt(slow),capital:parseFloat(capital)});
+  const sym=$('btSymbol').value||'CU',strategy=$('btStrategy').value||'DoubleMaStrategy';
+  const interval=$('btInterval').value||'d',start=$('btStart').value,end=$('btEnd').value,capital=$('btCapital').value||100000;
+  const r=await apiPost('/api/ext/backtest',{symbol:sym,strategy:strategy,interval:interval,start:start,end:end,capital:parseFloat(capital)});
   if(r.error){showToast(r.error,'err');return;}
-  $('btResult').innerHTML=`<div class="cards" style="grid-template-columns:repeat(2,1fr);gap:10px">
-    <div class="card" style="padding:14px"><div class="clabel">最终权益</div><div class="cvalue" style="font-size:20px">$${r.final.toLocaleString()}</div></div>
-    <div class="card" style="padding:14px"><div class="clabel">总收益率</div><div class="cvalue ${r.return_pct>=0?'up':'dn'}" style="font-size:20px">${r.return_pct}%</div></div>
-    <div class="card" style="padding:14px"><div class="clabel">最大回撤</div><div class="cvalue dn" style="font-size:20px">${r.max_dd_pct}%</div></div>
-    <div class="card" style="padding:14px"><div class="clabel">胜率</div><div class="cvalue" style="font-size:20px">${r.win_pct}%</div></div>
-  </div>`;
+  const s=r.statistics||{};
+  if(r.engine==='vnpy'){
+    $('btResult').innerHTML=`<div class="cards" style="grid-template-columns:repeat(2,1fr);gap:10px">${
+      Object.entries(s).map(([k,v])=>`<div class="card" style="padding:14px"><div class="clabel">${k}</div><div class="cvalue" style="font-size:18px">${typeof v==='number'?v.toFixed(2):v}</div></div>`).join('')
+    }</div>`;
+  }else{
+    $('btResult').innerHTML=`<div class="cards" style="grid-template-columns:repeat(2,1fr);gap:10px">
+      <div class="card" style="padding:14px"><div class="clabel">最终权益</div><div class="cvalue" style="font-size:20px">$${(s.final_equity||0).toLocaleString()}</div></div>
+      <div class="card" style="padding:14px"><div class="clabel">总收益率</div><div class="cvalue ${(s.total_return||0)>=0?'up':'dn'}" style="font-size:20px">${s.total_return}%</div></div>
+      <div class="card" style="padding:14px"><div class="clabel">最大回撤</div><div class="cvalue dn" style="font-size:20px">${s.max_drawdown}%</div></div>
+      <div class="card" style="padding:14px"><div class="clabel">胜率</div><div class="cvalue" style="font-size:20px">${s.win_rate}%</div></div>
+    </div>`;
+  }
   loadPlotly(()=>{
     const curve=r.curve||[];
     Plotly.newPlot('btChart',[{x:curve.map(d=>d.date),y:curve.map(d=>d.equity),type:'scatter',mode:'lines',line:{color:'#c9a96e',width:2},fill:'tozeroy',fillcolor:'rgba(201,169,110,0.1)'}],{paper_bgcolor:'#1a2740',plot_bgcolor:'#0f1923',font:{color:'#8899aa'},xaxis:{gridcolor:'rgba(255,255,255,0.05)'},yaxis:{gridcolor:'rgba(255,255,255,0.05)'},margin:{t:10,r:10,b:40,l:60},height:380,showlegend:false},{responsive:true,displayModeBar:false});
   });
+}
+
+// ===== Data Manager =====
+async function loadDataOverview(){
+  const data=await apiGet('/api/ext/data/overview');
+  if(Object.keys(data).length===0){$('dataOverview').innerHTML='<p style="color:#667788">暂无数据。请先运行 python download_data.py 下载历史数据，或使用下方导入功能。</p>';return;}
+  $('dataOverview').innerHTML=`<table><thead><tr><th>品种</th><th>名称</th><th>条数</th><th>起始</th><th>结束</th></tr></thead><tbody>${
+    Object.entries(data).map(([k,v])=>`<tr><td><b>${k}</b></td><td>${v.name||''}</td><td>${v.count||0}</td><td>${v.start||''}</td><td>${v.end||''}</td></tr>`).join('')
+  }</tbody></table>`;
+}
+async function importData(){
+  const sym=$('diSymbol').value.trim(),ex=$('diExchange').value;
+  if(!sym){showToast('请输入合约代码','err');return;}
+  const r=await apiPost('/api/ext/data/import',{filepath:`data/${sym}.csv`,symbol:sym,exchange:ex,interval:'d',start:'2023-01-01',end:'2026-12-31'});
+  showToast(r.message||'完成',r.status==='success'?'ok':'err');
+}
+async function exportData(){
+  const sym=$('deSymbol').value.trim(),ex=$('deExchange').value;
+  if(!sym){showToast('请输入合约代码','err');return;}
+  const r=await apiPost('/api/ext/data/export',{filepath:`data/export_${sym}.csv`,symbol:sym,exchange:ex,interval:'d',start:'2023-01-01',end:'2026-12-31'});
+  showToast(r.message||'完成',r.status==='success'?'ok':'err');
+}
+
+// ===== Data Recorder =====
+async function recorderAct(action){
+  const syms=$('recSymbols').value.trim();
+  if(!syms){showToast('请输入合约代码','err');return;}
+  const r=await apiPost('/api/ext/recorder/'+action,{symbols:syms});
+  showToast(r.message||'完成','ok');
+  loadRecorderStatus();
+}
+async function loadRecorderStatus(){
+  const s=await apiGet('/api/ext/recorder/status');
+  if(s.length===0){$('recStatus').innerHTML='<p style="color:#667788">当前未录制任何合约。输入合约代码后点"开始录制"。</p>';return;}
+  $('recStatus').innerHTML=`<p style="color:#3a7d5c">正在录制 ${s.length} 个合约：${s.join(', ')}</p>`;
 }
 
 // ===== Start =====

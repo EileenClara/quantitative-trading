@@ -412,32 +412,107 @@ def list_chart_data(access: bool = Depends(ext_auth)):
     return {}
 
 
-# ====== 简单回测 ======
+# ====== CTA 回测（使用原装引擎） ======
 @router.post("/backtest")
 def run_backtest(req: dict, access: bool = Depends(ext_auth)):
+    """使用 VeighNa CTA 回测引擎"""
     symbol = req.get("symbol", "CU")
-    fast = int(req.get("fast", 5))
-    slow = int(req.get("slow", 20))
-    capital = float(req.get("capital", 100000))
-    filepath = os.path.join(DATA_DIR, f"{symbol}.csv")
-    if not os.path.exists(filepath):
-        return {"error": f"请先运行 python download_data.py"}
-    df = pd.read_csv(filepath)
-    df["ma_fast"] = df["close"].rolling(fast).mean()
-    df["ma_slow"] = df["close"].rolling(slow).mean()
-    df["signal"] = 0
-    df.loc[df["ma_fast"] > df["ma_slow"], "signal"] = 1
-    df.loc[df["ma_fast"] < df["ma_slow"], "signal"] = -1
-    df["position"] = df["signal"].shift(1).fillna(0)
-    df["returns"] = df["close"].pct_change() * df["position"]
-    df["equity"] = (1 + df["returns"]).cumprod() * capital
-    final_equity = round(df["equity"].iloc[-1], 2)
-    total_return = round((final_equity / capital - 1) * 100, 2)
-    max_dd = round((df["equity"].cummax() - df["equity"]).max() / capital * 100, 2)
-    win_rate = round(len(df[df["returns"] > 0]) / len(df[df["returns"] != 0]) * 100, 2) if len(df[df["returns"] != 0]) > 0 else 0
-    return {
-        "symbol": symbol, "fast": fast, "slow": slow,
-        "initial": capital, "final": final_equity,
-        "return_pct": total_return, "max_dd_pct": max_dd, "win_pct": win_rate,
-        "curve": df[["date", "equity"]].tail(100).to_dict(orient="records"),
-    }
+    strategy = req.get("strategy", "DoubleMaStrategy")
+    interval = req.get("interval", "d")
+    start = req.get("start", "2023-06-01")
+    end = req.get("end", "2026-06-18")
+    capital = int(req.get("capital", 100000))
+    # 先确保有数据
+    csv_path = os.path.join(DATA_DIR, f"{symbol}.csv")
+    vt_symbol = f"{symbol}88.XSGE" if symbol.isalpha() else symbol
+    try:
+        # 尝试用原装引擎
+        result = get_client().rpc_start_backtesting(strategy, vt_symbol, interval, start, end, capital, {})
+        return {"status": "success", "engine": "vnpy", "statistics": result.get("statistics", {}),
+                "curve": result.get("curve", [])}
+    except Exception:
+        # 降级：用 CSV 数据做简单回测
+        if not os.path.exists(csv_path):
+            return {"error": f"请先运行 python download_data.py"}
+        df = pd.read_csv(csv_path)
+        fast, slow = int(req.get("fast", 5)), int(req.get("slow", 20))
+        df["ma_fast"] = df["close"].rolling(fast).mean()
+        df["ma_slow"] = df["close"].rolling(slow).mean()
+        df["position"] = (df["ma_fast"] > df["ma_slow"]).astype(int).shift(1).fillna(0)
+        df["returns"] = df["close"].pct_change() * df["position"]
+        df["equity"] = (1 + df["returns"]).cumprod() * capital
+        final_equity = round(df["equity"].iloc[-1], 2)
+        return {
+            "status": "success", "engine": "simple",
+            "statistics": {
+                "final_equity": final_equity,
+                "total_return": round((final_equity / capital - 1) * 100, 2),
+                "max_drawdown": round((df["equity"].cummax() - df["equity"]).max() / capital * 100, 2),
+                "win_rate": round(len(df[df["returns"] > 0]) / len(df[df["returns"] != 0]) * 100, 2) if len(df[df["returns"] != 0]) > 0 else 0,
+                "total_days": len(df),
+            },
+            "curve": df[["date", "equity"]].tail(100).to_dict(orient="records"),
+        }
+
+# ====== 数据管理 ======
+@router.get("/data/overview")
+def get_data_overview(access: bool = Depends(ext_auth)):
+    """查看数据库中的数据概况"""
+    try:
+        return get_client().rpc_get_bar_overview()
+    except Exception:
+        # 用本地 CSV 数据
+        idx = os.path.join(DATA_DIR, "index.json")
+        if os.path.exists(idx):
+            with open(idx, "r", encoding="utf-8") as f:
+                return json.load(f)
+        return {}
+
+@router.post("/data/import")
+def import_data(req: dict, access: bool = Depends(ext_auth)):
+    """从 CSV 导入数据到数据库"""
+    try:
+        result = get_client().rpc_import_csv(
+            req.get("filepath", ""), req.get("symbol", ""), req.get("exchange", "SHFE"),
+            req.get("interval", "d"), req.get("start", ""), req.get("end", ""))
+        return {"status": "success", "message": str(result)}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@router.post("/data/export")
+def export_data(req: dict, access: bool = Depends(ext_auth)):
+    """从数据库导出数据到 CSV"""
+    try:
+        result = get_client().rpc_export_csv(
+            req.get("filepath", ""), req.get("symbol", ""), req.get("exchange", "SHFE"),
+            req.get("interval", "d"), req.get("start", ""), req.get("end", ""))
+        return {"status": "success", "message": str(result)}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+# ====== 行情录制 ======
+@router.get("/recorder/status")
+def get_recorder_status(access: bool = Depends(ext_auth)):
+    """获取行情录制状态"""
+    try:
+        return get_client().rpc_get_recording_status()
+    except Exception:
+        return []
+
+@router.post("/recorder/start")
+def start_recording(req: dict, access: bool = Depends(ext_auth)):
+    """开始录制"""
+    try:
+        result = get_client().rpc_start_recording(req.get("symbols", ""))
+        return {"status": "success", "message": str(result)}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@router.post("/recorder/stop")
+def stop_recording(req: dict, access: bool = Depends(ext_auth)):
+    """停止录制"""
+    try:
+        result = get_client().rpc_stop_recording(req.get("symbols", ""))
+        return {"status": "success", "message": str(result)}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}

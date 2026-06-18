@@ -27,6 +27,10 @@ from vnpy_algotrading import AlgoTradingApp
 # ====== 风险管理 ======
 from vnpy_riskmanager import RiskManagerApp
 
+# ====== 数据管理 ======
+from vnpy_spreadtrading import SpreadTradingApp
+from vnpy_datarecorder import DataRecorderApp
+
 # ====== RPC 服务（核心！让 WebTrader 能连进来）======
 from vnpy_rpcservice import RpcServiceApp
 from vnpy_rpcservice.rpc_service.engine import RpcEngine, EVENT_RPC_LOG
@@ -79,6 +83,11 @@ def main() -> None:
     # 7. 添加风险管理
     main_engine.add_app(RiskManagerApp)
     print("[OK] 风控模块已加载")
+
+    # 7b. 添加数据管理 + 行情录制
+    main_engine.add_app(SpreadTradingApp)
+    main_engine.add_app(DataRecorderApp)
+    print("[OK] 数据管理 + 行情录制已加载")
 
     # 8. 添加 RPC 服务（让 WebTrader 可以通过网络调用）
     rpc_engine: RpcEngine = main_engine.add_app(RpcServiceApp)
