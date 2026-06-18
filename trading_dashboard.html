@@ -585,8 +585,8 @@ async function loadChart(){
       decreasing:{line:{color:'#c0392b'},fillcolor:'#c0392b'},
       hoverlabel:{bgcolor:'#1a2740',font:{color:'#f0efe7',size:13}},
       hovertemplate:'<b>%{x|%Y年%m月%d日}</b><br>开盘价: %{open}  最高价: %{high}<br>最低价: %{low}  收盘价: %{close}<extra></extra>'};
-    const ln=(n,c,w)=>({x:dates,y:n,type:'scatter',mode:'lines',name:c,line:{color:c,width:w||1.5},xaxis:'x',yaxis:'y',hoverinfo:'none'});
-    const traceMA5=ln(ma5,'#f1c40f',1.5),traceMA10=ln(ma10,'#e67e22',1.5),traceMA20=ln(ma20,'#9b59b6',1.5),traceMA60=ln(ma60,'#3498db',1);
+    const ln=(n,c,w,l)=>({x:dates,y:n,type:'scatter',mode:'lines',name:l,line:{color:c,width:w||1.5},xaxis:'x',yaxis:'y',hoverinfo:'none'});
+    const traceMA5=ln(ma5,'#f1c40f',1.5,'5日均线'),traceMA10=ln(ma10,'#e67e22',1.5,'10日均线'),traceMA20=ln(ma20,'#9b59b6',1.5,'20日均线'),traceMA60=ln(ma60,'#3498db',1,'60日均线');
     const volBar={x:dates,y:volumes,type:'bar',name:'成交量',xaxis:'x',yaxis:'y2',
       marker:{color:volColors},hovertemplate:'成交量: %{y} 手<extra></extra>',showlegend:true};
     const traces=[candlestick,traceMA5,traceMA10,traceMA20,traceMA60,volBar];
@@ -603,7 +603,7 @@ async function loadChart(){
       dragmode:'pan',
       newshape:{line:{color:'#c9a96e',width:2,dash:'solid'},fillcolor:'rgba(201,169,110,0.08)'},
     };
-    const config={responsive:true,displayModeBar:true,displaylogo:false,scrollZoom:true,
+    const config={responsive:true,displayModeBar:true,displaylogo:false,scrollZoom:true,locale:'zh-cn',
       modeBarButtons:[
         ['drawline','drawopenpath','drawrect','drawcircle','eraseshape'],
         ['pan2d','zoom2d','zoomIn2d','zoomOut2d'],
