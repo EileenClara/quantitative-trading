@@ -56,3 +56,10 @@ If the API returns empty (no broker connected), you MAY show demo data BUT MUST:
 - Clearly label it as "示例数据"
 - Still include real API calls that WILL work when broker connects
 - Show the API connection status indicator
+
+## AFTER EVERY CODE CHANGE
+Run the test suite:
+```bash
+PYTHONIOENCODING=utf-8 python test_all.py
+```
+All 33 tests must pass before considering the change complete. If any fail, fix them before moving on.

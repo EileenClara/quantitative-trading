@@ -276,7 +276,12 @@ select.finput{cursor:pointer}
 // ============================================================
 
 const API=window.location.origin;
-let token='',ws=null,cachedStrats=[],riskState={};
+let token='',ws=null,cachedStrats=[],riskState={},initDone=false;
+
+async function ensureToken(){
+  if(!token){await login();}
+  return token;
+}
 
 // ===== Utils =====
 const $=id=>document.getElementById(id);
@@ -285,8 +290,8 @@ const ft=t=>{if(!t)return'--';try{const d=new Date(t);if(isNaN(d.getTime()))retu
 const showToast=(msg,type)=>{const e=document.createElement('div');e.className='toast '+type;e.textContent=msg;$('toastBox').appendChild(e);setTimeout(()=>{e.style.opacity='0';setTimeout(()=>e.remove(),300);},2800);};
 const setStatus=(cls,txt)=>{const d=$('sdot');d.className='sdot '+cls;$('stxt').textContent=txt;};
 
-async function apiGet(path){try{const r=await fetch(API+path,{headers:{Authorization:'Bearer '+token,accept:'application/json'}});return r.ok?await r.json():[];}catch(e){return[];}}
-async function apiPost(path,body){try{const r=await fetch(API+path,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json',accept:'application/json'},body:JSON.stringify(body)});return await r.json();}catch(e){return{status:'error',message:''+e};}}
+async function apiGet(path){if(!token)await ensureToken();try{const r=await fetch(API+path,{headers:{Authorization:'Bearer '+token,accept:'application/json'}});return r.ok?await r.json():[];}catch(e){return[];}}
+async function apiPost(path,body){if(!token)await ensureToken();try{const r=await fetch(API+path,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json',accept:'application/json'},body:JSON.stringify(body)});return await r.json();}catch(e){return{status:'error',message:''+e};}}
 
 // ===== Auth =====
 async function login(){
@@ -547,7 +552,13 @@ function loadPlotly(cb){
   const s=document.createElement('script');
   s.src='https://registry.npmmirror.com/plotly.js-dist/3.1.0/files/plotly.min.js';
   s.onload=()=>{plotlyReady=true;cb();};
-  s.onerror=()=>showToast('图表组件加载失败，请检查网络','err');
+  s.onerror=()=>{
+    const s2=document.createElement('script');
+    s2.src='https://cdn.jsdelivr.net/npm/plotly.js-dist@3.1.0/plotly.min.js';
+    s2.onload=()=>{plotlyReady=true;cb();};
+    s2.onerror=()=>showToast('图表加载失败','err');
+    document.head.appendChild(s2);
+  };
   document.head.appendChild(s);
 }
 async function loadChartList(){
