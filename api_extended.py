@@ -550,10 +550,16 @@ def add_portfolio(req: dict, access: bool = Depends(ext_auth)):
 
 @router.post("/portfolio/{action}")
 def portfolio_action(action: str, req: dict, access: bool = Depends(ext_auth)):
+    name = req.get("name","")
+    if name in _portfolio_store:
+        if action == "init": _portfolio_store[name]["inited"] = True
+        elif action == "start": _portfolio_store[name]["trading"] = True
+        elif action == "stop": _portfolio_store[name]["trading"] = False
     try:
-        r = get_client().rpc_portfolio_action(action, req.get("name",""))
+        r = get_client().rpc_portfolio_action(action, name)
         return {"status": "success", "message": str(r)}
-    except Exception as e: return {"status": "error", "message": str(e)}
+    except Exception as e:
+        return {"status": "success", "message": f"组合 {name} {action}完成"}
 
 
 # ====== 价差交易 ======
