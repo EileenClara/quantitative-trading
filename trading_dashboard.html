@@ -275,7 +275,7 @@ select.finput{cursor:pointer}
 // VeighNa Trading Dashboard v2.0 — Clean rewrite
 // ============================================================
 
-const API='http://127.0.0.1:8000';
+const API=window.location.origin;
 let token='',ws=null,cachedStrats=[],riskState={};
 
 // ===== Utils =====
@@ -298,7 +298,7 @@ async function login(){
 // ===== WebSocket =====
 function connectWS(){
   if(ws) ws.close();
-  ws=new WebSocket('ws://127.0.0.1:8000/ws/?token='+token);
+  const wsp=window.location.protocol==='https:'?'wss://':'ws://';ws=new WebSocket(wsp+window.location.host+'/ws/?token='+token);
   ws.onopen=()=>setStatus('on','系统运行正常');
   ws.onmessage=e=>{try{const m=JSON.parse(e.data);if(m.topic==='eTrade'||m.topic==='eOrder') loadAll();updateTime();}catch(_){}};
   ws.onclose=()=>{setStatus('warn','连接断开，重连中...');setTimeout(connectWS,3000);};
