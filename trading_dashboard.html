@@ -347,20 +347,10 @@ select.finput{cursor:pointer}
 
   <!-- Alpha -->
   <div class="panel" id="p-alpha">
-    <div class="c-card"><h3 class="qt">Alpha 多因子机器学习</h3><p style="color:#667788;font-size:13px">基于 VeighNa Alpha 模块，使用机器学习进行多因子选股/选品种。需要历史数据。</p></div>
+    <div class="c-card"><h3 class="qt">Alpha 多因子机器学习</h3><p style="color:#667788;font-size:13px">数据集 + 因子特征工程 + ML 模型。完整训练流程需在 Jupyter Notebook 中运行（见 examples/alpha_research）。此面板用于查看已创建的数据集和模型。</p></div>
     <div class="g2">
-      <div class="c-card"><h3 class="qt">数据集</h3>
-        <div id="alphaDatasets"><p style="color:#667788">加载中...</p></div>
-        <div class="fgroup" style="margin-top:10px"><label class="flabel">名称</label><input class="finput" id="adName" placeholder="如 my_dataset"></div>
-        <div class="fgroup"><label class="flabel">标的</label><input class="finput" id="adSymbols" placeholder="如 000300.SH"></div>
-        <button class="btn btn-b btn-s" onclick="alphaCreateDataset()">创建数据集</button>
-      </div>
-      <div class="c-card"><h3 class="qt">模型训练</h3>
-        <div id="alphaModels"><p style="color:#667788">加载中...</p></div>
-        <div class="fgroup" style="margin-top:10px"><label class="flabel">数据集</label><select class="finput" id="amDataset"></select></div>
-        <div class="fgroup"><label class="flabel">模型</label><select class="finput" id="amModel"><option value="lasso">Lasso 回归</option><option value="lightgbm">LightGBM</option><option value="mlp">MLP 神经网络</option></select></div>
-        <button class="btn btn-g btn-s" onclick="alphaTrain()">训练模型</button>
-      </div>
+      <div class="c-card"><h3 class="qt">数据集</h3><div id="alphaDatasets"><p style="color:#667788">加载中...</p></div></div>
+      <div class="c-card"><h3 class="qt">模型</h3><div id="alphaModels"><p style="color:#667788">加载中...</p></div></div>
     </div>
   </div>
 
@@ -848,21 +838,9 @@ async function scCancel(oid){const r=await apiPost('/api/ext/script/cancel',{vt_
 // ===== Alpha =====
 async function alphaLoad(){
   const ds=await apiGet('/api/ext/alpha/datasets');
-  $('alphaDatasets').innerHTML=ds.length>0?ds.map(d=>`<div class="scard"><h4>${d}</h4></div>`).join(''):'<p style="color:#667788">暂无数据集</p>';
+  $('alphaDatasets').innerHTML=ds.length>0?ds.map(d=>`<div class="scard"><h4>${d}</h4></div>`).join(''):'<p style="color:#667788">暂无数据集。通过 Jupyter Notebook 创建（examples/alpha_research/）。</p>';
   const ms=await apiGet('/api/ext/alpha/models');
-  $('alphaModels').innerHTML=ms.length>0?ms.map(m=>`<div class="scard"><h4>${m}</h4></div>`).join(''):'<p style="color:#667788">暂无模型</p>';
-  $('amDataset').innerHTML=(ds.length>0?ds:['test']).map(d=>`<option>${d}</option>`).join('');
-}
-async function alphaCreateDataset(){
-  const n=$('adName').value.trim(),s=$('adSymbols').value.trim();
-  if(!n){showToast('请输入数据集名称','err');return;}
-  const r=await apiPost('/api/ext/alpha/dataset/create',{name:n,symbols:s,fields:['open','high','low','close','volume']});
-  showToast(r.message||'已创建','ok');alphaLoad();
-}
-async function alphaTrain(){
-  const ds=$('amDataset').value,m=$('amModel').value;
-  const r=await apiPost('/api/ext/alpha/train',{dataset:ds,model:m,name:ds+'_'+m});
-  showToast(r.message||'训练完成','ok');
+  $('alphaModels').innerHTML=ms.length>0?ms.map(m=>`<div class="scard"><h4>${m}</h4></div>`).join(''):'<p style="color:#667788">暂无模型。通过 Jupyter Notebook 训练。</p>';
 }
 
 // ===== Option =====
