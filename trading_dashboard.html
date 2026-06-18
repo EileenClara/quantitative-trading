@@ -603,15 +603,20 @@ async function loadChart(){
       dragmode:'pan',
       newshape:{line:{color:'#c9a96e',width:2,dash:'solid'},fillcolor:'rgba(201,169,110,0.08)'},
     };
-    const config={responsive:true,displayModeBar:true,displaylogo:false,scrollZoom:true,locale:'zh-cn',
+    const config={responsive:true,displayModeBar:true,displaylogo:false,scrollZoom:true,
       modeBarButtons:[
         ['drawline','drawopenpath','drawrect','drawcircle','eraseshape'],
         ['pan2d','zoom2d','zoomIn2d','zoomOut2d'],
         ['autoScale2d','resetScale2d'],
-      ],
-      modeBarButtonsToAdd:[],modeBarButtonsToRemove:[]
-    };
+      ]};
     Plotly.newPlot('chContainer',traces,layout,config);
+    // 中文提示
+    setTimeout(()=>{
+      const tips=document.createElement('div');
+      tips.style.cssText='margin-top:8px;font-size:11px;color:#667788;text-align:center';
+      tips.innerHTML='工具栏：<span style="color:#8899aa">画线</span> | <span style="color:#8899aa">自由线</span> | <span style="color:#8899aa">矩形</span> | <span style="color:#8899aa">圆形</span> | <span style="color:#8899aa">橡皮擦</span> &nbsp;|&nbsp; <span style="color:#8899aa">拖拽</span> | <span style="color:#8899aa">框选</span> | <span style="color:#8899aa">放大</span> | <span style="color:#8899aa">缩小</span> | <span style="color:#8899aa">自适应</span> | <span style="color:#8899aa">还原</span>';
+      $('chContainer').appendChild(tips);
+    },500);
   });
 }
 
