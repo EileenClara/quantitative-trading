@@ -58,7 +58,15 @@ If the API returns empty (no broker connected), you MAY show demo data BUT MUST:
 - Show the API connection status indicator
 
 ## AFTER EVERY CODE CHANGE
-Run the test suite:
+1. If `api_extended.py` or `rpc_extensions.py` changed: **KILL and RESTART** both servers:
+```bash
+# Kill
+python -c "import subprocess;[subprocess.run(f'taskkill //F //PID {l.split()[-1]}',shell=True,capture_output=True) for l in subprocess.run('netstat -ano|findstr :2014|findstr LISTENING;netstat -ano|findstr :8000|findstr LISTENING',shell=True,capture_output=True,text=True).stdout.strip().split(chr(10)) if l.strip()]"
+rm -rf __pycache__/
+# Start
+python run_server.py & python run_web.py
+```
+2. Run the test suite:
 ```bash
 PYTHONIOENCODING=utf-8 python test_all.py
 ```
