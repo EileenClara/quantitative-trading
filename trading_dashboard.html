@@ -575,7 +575,7 @@ async function loadChart(){
     const dates=data.map(d=>d.date);
     const closes=data.map(d=>d.close);
     const opens=data.map(d=>d.open),highs=data.map(d=>d.high),lows=data.map(d=>d.low);
-    const ma=(arr,n)=>{const r=[];for(let i=0;i<arr.length;i++){if(i<n-1)r.push(null);else{let s=0;for(let j=0;j<n;j++)s+=arr[i-j];r.push(+(s/n).toFixed(2));}return r;};
+    const ma=(arr,n)=>{const r=[];for(let i=0;i<arr.length;i++){if(i<n-1){r.push(null);}else{let s=0;for(let j=0;j<n;j++)s+=arr[i-j];r.push(+(s/n).toFixed(2));}}return r;};
     const ma5=ma(closes,5),ma10=ma(closes,10),ma20=ma(closes,20),ma60=ma(closes,60);
     const volumes=data.map(d=>d.volume);
     const volColors=data.map(d=>d.close>=d.open?'rgba(58,125,92,0.5)':'rgba(192,57,43,0.5)');
@@ -609,7 +609,7 @@ async function loadChart(){
         ['pan2d','zoom2d','zoomIn2d','zoomOut2d'],
         ['autoScale2d','resetScale2d'],
       ],
-      modeBarButtonsToAdd:[],modeBarButtonsToRemove:[],
+      modeBarButtonsToAdd:[],modeBarButtonsToRemove:[]
     };
     Plotly.newPlot('chContainer',traces,layout,config);
   });
