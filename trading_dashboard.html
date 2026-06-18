@@ -518,7 +518,7 @@ function genCtaForm(){
     Object.entries(params).map(([k,v])=>`<tr><td style="color:#5dade2;font-size:12px">${k}</td><td style="font-size:12px">${PARAM_LABELS[k]||k}</td><td style="color:#c9a96e">${v}</td><td><input class="finput" id="p_${k}" value="${v}" style="width:100px;padding:6px;font-size:13px" type="number" step="any"></td></tr>`).join('')+
     '</tbody></table>';
 }
-function addCtaRow(){const d=document.createElement('div');d.className='cta-row';d.style.cssText='display:flex;gap:8px;margin-bottom:6px';d.innerHTML='<input class=\"finput\" placeholder=\"如 cu2506.SHFE\" list=\"contractDL\" style=\"flex:1\"><button class=\"btn btn-e btn-s\" onclick=\"this.closest(\\'.cta-row\\').remove()\" style=\"flex-shrink:0\">✕</button>';$('ctaContractRows').appendChild(d);}
+function addCtaRow(){const d=document.createElement('div');d.className='cta-row';d.style.cssText='display:flex;gap:8px;margin-bottom:6px';const inp=document.createElement('input');inp.className='finput';inp.placeholder='如 cu2506.SHFE';inp.setAttribute('list','contractDL');inp.style.flex='1';const btn=document.createElement('button');btn.className='btn btn-e btn-s';btn.textContent='x';btn.style.flexShrink='0';btn.onclick=function(){this.closest('.cta-row').remove();};d.appendChild(inp);d.appendChild(btn);$('ctaContractRows').appendChild(d);}
 $('btnCtaAdd').addEventListener('click',async()=>{
   const cn=$('ctaType').value,sn=$('ctaName').value.trim();
   if(!sn){showToast('请输入策略名称','err');return;}
@@ -753,7 +753,7 @@ async function exportData(){
 }
 
 // ===== Portfolio =====
-function addPfRow(){const d=document.createElement('div');d.className='pf-row';d.style.cssText='display:flex;gap:8px;margin-bottom:6px;align-items:center';d.innerHTML='<input class=\"finput\" placeholder=\"合约\" list=\"contractDL\" style=\"flex:1\"><input class=\"finput\" placeholder=\"权重 (如 1.0 或 -1.0)\" type=\"number\" step=\"any\" value=\"1.0\" style=\"width:100px\"><button class=\"btn btn-e btn-s\" onclick=\"this.closest(\\'.pf-row\\').remove()\" style=\"flex-shrink:0\">✕</button>';$('pfContractRows').appendChild(d);}
+function addPfRow(){const d=document.createElement('div');d.className='pf-row';d.style.cssText='display:flex;gap:8px;margin-bottom:6px;align-items:center';const i1=document.createElement('input');i1.className='finput';i1.placeholder='合约';i1.setAttribute('list','contractDL');i1.style.flex='1';d.appendChild(i1);const i2=document.createElement('input');i2.className='finput';i2.placeholder='权重 (如 1.0 或 -1.0)';i2.type='number';i2.step='any';i2.value='1.0';i2.style.width='100px';d.appendChild(i2);const btn=document.createElement('button');btn.className='btn btn-e btn-s';btn.textContent='x';btn.style.flexShrink='0';btn.onclick=function(){this.closest('.pf-row').remove();};d.appendChild(btn);$('pfContractRows').appendChild(d);}
 async function pfAdd(){
   const cn='PortfolioStrategyTemplate',name=$('pfName').value.trim();
   if(!name){showToast('请输入策略名称','err');return;}
