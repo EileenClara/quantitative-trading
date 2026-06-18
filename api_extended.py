@@ -635,21 +635,21 @@ def script_orders(access: bool = Depends(ext_auth)):
 def alpha_datasets(access: bool = Depends(ext_auth)):
     try:
         from vnpy.alpha.lab import AlphaLab
-        return AlphaLab().list_all_datasets()
+        return AlphaLab("data/alpha").list_all_datasets()
     except: return []
 
 @router.get("/alpha/models")
 def alpha_models(access: bool = Depends(ext_auth)):
     try:
         from vnpy.alpha.lab import AlphaLab
-        return AlphaLab().list_all_models()
+        return AlphaLab("data/alpha").list_all_models()
     except: return ["lasso","lightgbm","mlp"]
 
 @router.post("/alpha/train")
 def alpha_train(req: dict, access: bool = Depends(ext_auth)):
     try:
         from vnpy.alpha.lab import AlphaLab
-        lab=AlphaLab()
+        lab=AlphaLab("data/alpha")
         lab.load_dataset(req.get("dataset","test"))
         lab.load_model(req.get("model","lasso"))
         lab.save_signal(req.get("name",req.get("dataset","test")+"_"+req.get("model","lasso")))
