@@ -42,6 +42,7 @@ def register_extensions(
     portfolio_engine = _get_engine(main_engine, "PortfolioStrategy")
     spread_engine = _get_engine(main_engine, "SpreadTrading")
     option_engine = _get_engine(main_engine, "OptionMaster")
+    script_engine = _get_engine(main_engine, "ScriptTrader")
 
     # ====== CTA 策略引擎 ======
     if cta_engine:
@@ -388,6 +389,40 @@ def register_extensions(
         rpc_server.register(rpc_get_option_data)
         rpc_server.register(rpc_get_underlyings)
         rpc_server.register(rpc_update_option_setting)
+
+    # ====== 脚本交易引擎 ======
+    if script_engine:
+        def rpc_script_buy(vt_symbol: str, price: float, volume: int) -> str:
+            script_engine.buy(vt_symbol, price, volume)
+            return f"买入 {vt_symbol} {volume}手 @ {price}"
+
+        def rpc_script_sell(vt_symbol: str, price: float, volume: int) -> str:
+            script_engine.sell(vt_symbol, price, volume)
+            return f"卖出 {vt_symbol} {volume}手 @ {price}"
+
+        def rpc_script_short(vt_symbol: str, price: float, volume: int) -> str:
+            script_engine.short(vt_symbol, price, volume)
+            return f"做空 {vt_symbol} {volume}手 @ {price}"
+
+        def rpc_script_cover(vt_symbol: str, price: float, volume: int) -> str:
+            script_engine.cover(vt_symbol, price, volume)
+            return f"平空 {vt_symbol} {volume}手 @ {price}"
+
+        def rpc_script_cancel(vt_orderid: str) -> str:
+            script_engine.cancel_order(vt_orderid)
+            return f"撤单 {vt_orderid}"
+
+        def rpc_script_get_orders() -> list:
+            orders = script_engine.get_all_active_orders()
+            return [{"vt_orderid": o.vt_orderid, "vt_symbol": o.vt_symbol, "direction": str(o.direction),
+                     "price": o.price, "volume": o.volume, "status": str(o.status)} for o in orders]
+
+        rpc_server.register(rpc_script_buy)
+        rpc_server.register(rpc_script_sell)
+        rpc_server.register(rpc_script_short)
+        rpc_server.register(rpc_script_cover)
+        rpc_server.register(rpc_script_cancel)
+        rpc_server.register(rpc_script_get_orders)
 
 
 def _load_builtin_strategies(cta_engine: Any) -> None:

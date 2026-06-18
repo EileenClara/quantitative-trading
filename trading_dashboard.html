@@ -167,6 +167,8 @@ select.finput{cursor:pointer}
   <button class="tab qt" data-tab="portfolio">组合策略</button>
   <button class="tab qt" data-tab="spread">价差交易</button>
   <button class="tab qt" data-tab="option">期权交易</button>
+  <button class="tab" data-tab="script">脚本交易</button>
+  <button class="tab qt" data-tab="alpha">Alpha量化</button>
 </div>
 
 <!-- Main -->
@@ -326,6 +328,42 @@ select.finput{cursor:pointer}
     </div>
   </div>
 
+  <!-- Script Trader -->
+  <div class="panel" id="p-script">
+    <div class="c-card"><h3>快速交易</h3><p style="color:#667788;font-size:13px">类似命令行快速交易。适合临时下一两笔单，不需要完整策略流程。</p></div>
+    <div class="c-card">
+      <div class="fgroup"><label class="flabel">合约</label><input class="finput" id="scSymbol" placeholder="如 cu2506.SHFE" list="contractDL"></div>
+      <div class="fgroup"><label class="flabel">价格 (0=市价)</label><input class="finput" id="scPrice" type="number" step="0.01" value="0"></div>
+      <div class="fgroup"><label class="flabel">手数</label><input class="finput" id="scVolume" type="number" min="1" value="1"></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-r" onclick="scTrade('buy')">买入</button>
+        <button class="btn btn-e" onclick="scTrade('sell')">卖出</button>
+        <button class="btn btn-r" onclick="scTrade('short')">做空</button>
+        <button class="btn btn-e" onclick="scTrade('cover')">平空</button>
+      </div>
+    </div>
+    <div class="c-card"><h3>活跃委托</h3><div id="scOrders"><p style="color:#667788">暂无活跃委托</p></div></div>
+  </div>
+
+  <!-- Alpha -->
+  <div class="panel" id="p-alpha">
+    <div class="c-card"><h3 class="qt">Alpha 多因子机器学习</h3><p style="color:#667788;font-size:13px">基于 VeighNa Alpha 模块，使用机器学习进行多因子选股/选品种。需要历史数据。</p></div>
+    <div class="g2">
+      <div class="c-card"><h3 class="qt">数据集</h3>
+        <div id="alphaDatasets"><p style="color:#667788">加载中...</p></div>
+        <div class="fgroup" style="margin-top:10px"><label class="flabel">名称</label><input class="finput" id="adName" placeholder="如 my_dataset"></div>
+        <div class="fgroup"><label class="flabel">标的</label><input class="finput" id="adSymbols" placeholder="如 000300.SH"></div>
+        <button class="btn btn-b btn-s" onclick="alphaCreateDataset()">创建数据集</button>
+      </div>
+      <div class="c-card"><h3 class="qt">模型训练</h3>
+        <div id="alphaModels"><p style="color:#667788">加载中...</p></div>
+        <div class="fgroup" style="margin-top:10px"><label class="flabel">数据集</label><select class="finput" id="amDataset"></select></div>
+        <div class="fgroup"><label class="flabel">模型</label><select class="finput" id="amModel"><option value="lasso">Lasso 回归</option><option value="lightgbm">LightGBM</option><option value="mlp">MLP 神经网络</option></select></div>
+        <button class="btn btn-g btn-s" onclick="alphaTrain()">训练模型</button>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <!-- Status Bar -->
@@ -454,6 +492,8 @@ function switchTab(name){
   if(name==='portfolio') pfLoad();
   if(name==='spread') spLoad();
   if(name==='option') optLoad();
+  if(name==='script') scLoad();
+  if(name==='alpha') alphaLoad();
 }
 document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>switchTab(b.dataset.tab)));
 
@@ -788,6 +828,41 @@ async function spLoad(){
   const pos=await apiGet('/api/ext/spread/positions');
   if(data.length===0){$('spData').innerHTML='<div class="empty">暂无价差数据。请创建价差并启动引擎。</div>';return;}
   $('spData').innerHTML=`<table><thead><tr><th>价差名称</th><th>腿</th><th>净值</th></tr></thead><tbody>${data.map(d=>`<tr><td><b>${d.name}</b></td><td>${d.legs?d.legs.map(l=>l.join(':')).join(', '):'-'}</td><td>${d.price||0}</td></tr>`).join('')}</tbody></table>`;
+}
+
+// ===== Script Trader =====
+async function scTrade(action){
+  const s=$('scSymbol').value.trim(),p=parseFloat($('scPrice').value)||0,v=parseInt($('scVolume').value)||1;
+  if(!s){showToast('请输入合约','err');return;}
+  if(v<1){showToast('请输入有效手数','err');return;}
+  const r=await apiPost('/api/ext/script/trade',{action:action,vt_symbol:s,price:p,volume:v});
+  showToast(r.message||'完成',r.status==='success'?'ok':'err');scLoad();
+}
+async function scLoad(){
+  const o=await apiGet('/api/ext/script/orders');
+  if(o.length===0){$('scOrders').innerHTML='<p style="color:#667788">暂无活跃委托</p>';return;}
+  $('scOrders').innerHTML=`<table><thead><tr><th>委托号</th><th>合约</th><th>方向</th><th>价格</th><th>手数</th><th>操作</th></tr></thead><tbody>${o.map(x=>`<tr><td style="font-size:12px">${x.vt_orderid}</td><td>${x.vt_symbol}</td><td>${x.direction}</td><td>${x.price}</td><td>${x.volume}</td><td><button class="btn btn-e btn-s" onclick="scCancel('${x.vt_orderid}')">撤单</button></td></tr>`).join('')}</tbody></table>`;
+}
+async function scCancel(oid){const r=await apiPost('/api/ext/script/cancel',{vt_orderid:oid});showToast(r.message||'已撤','ok');scLoad();}
+
+// ===== Alpha =====
+async function alphaLoad(){
+  const ds=await apiGet('/api/ext/alpha/datasets');
+  $('alphaDatasets').innerHTML=ds.length>0?ds.map(d=>`<div class="scard"><h4>${d}</h4></div>`).join(''):'<p style="color:#667788">暂无数据集</p>';
+  const ms=await apiGet('/api/ext/alpha/models');
+  $('alphaModels').innerHTML=ms.length>0?ms.map(m=>`<div class="scard"><h4>${m}</h4></div>`).join(''):'<p style="color:#667788">暂无模型</p>';
+  $('amDataset').innerHTML=(ds.length>0?ds:['test']).map(d=>`<option>${d}</option>`).join('');
+}
+async function alphaCreateDataset(){
+  const n=$('adName').value.trim(),s=$('adSymbols').value.trim();
+  if(!n){showToast('请输入数据集名称','err');return;}
+  const r=await apiPost('/api/ext/alpha/dataset/create',{name:n,symbols:s,fields:['open','high','low','close','volume']});
+  showToast(r.message||'已创建','ok');alphaLoad();
+}
+async function alphaTrain(){
+  const ds=$('amDataset').value,m=$('amModel').value;
+  const r=await apiPost('/api/ext/alpha/train',{dataset:ds,model:m,name:ds+'_'+m});
+  showToast(r.message||'训练完成','ok');
 }
 
 // ===== Option =====

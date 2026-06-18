@@ -32,6 +32,9 @@ from vnpy_portfoliostrategy import PortfolioStrategyApp
 from vnpy_spreadtrading import SpreadTradingApp
 from vnpy_optionmaster import OptionMasterApp
 
+# ====== 脚本交易 ======
+from vnpy_scripttrader import ScriptTraderApp
+
 # ====== 数据管理 ======
 from vnpy_datarecorder import DataRecorderApp
 
@@ -92,8 +95,9 @@ def main() -> None:
     main_engine.add_app(PortfolioStrategyApp)
     main_engine.add_app(SpreadTradingApp)
     main_engine.add_app(OptionMasterApp)
+    main_engine.add_app(ScriptTraderApp)
     main_engine.add_app(DataRecorderApp)
-    print("[OK] 组合策略 + 价差交易 + 期权交易 + 数据管理已加载")
+    print("[OK] 脚本交易 + 组合策略 + 价差 + 期权 + 数据管理已加载")
 
     # 8. 添加 RPC 服务（让 WebTrader 可以通过网络调用）
     rpc_engine: RpcEngine = main_engine.add_app(RpcServiceApp)

@@ -610,3 +610,48 @@ def update_option_setting(req: dict, access: bool = Depends(ext_auth)):
         r = get_client().rpc_update_option_setting(req.get("name",""), req.get("setting",{}))
         return {"status": "success", "message": str(r)}
     except Exception as e: return {"status": "error", "message": str(e)}
+
+# ====== Script Trader ======
+@router.post("/script/trade")
+def script_trade(req: dict, access: bool = Depends(ext_auth)):
+    try:
+        a=req.get("action","buy");s=req.get("vt_symbol","");p=float(req.get("price",0));v=int(req.get("volume",1))
+        r=getattr(get_client(),f"rpc_script_{a}")(s,p,v)
+        return {"status":"success","message":str(r)}
+    except Exception as e: return {"status":"error","message":str(e)}
+
+@router.post("/script/cancel")
+def script_cancel(req: dict, access: bool = Depends(ext_auth)):
+    try: return {"status":"success","message":str(get_client().rpc_script_cancel(req.get("vt_orderid","")))}
+    except Exception as e: return {"status":"error","message":str(e)}
+
+@router.get("/script/orders")
+def script_orders(access: bool = Depends(ext_auth)):
+    try: return get_client().rpc_script_get_orders()
+    except: return []
+
+# ====== Alpha Lab ======
+@router.get("/alpha/datasets")
+def alpha_datasets(access: bool = Depends(ext_auth)):
+    try:
+        from vnpy.alpha.lab import AlphaLab
+        return AlphaLab().list_all_datasets()
+    except: return []
+
+@router.get("/alpha/models")
+def alpha_models(access: bool = Depends(ext_auth)):
+    try:
+        from vnpy.alpha.lab import AlphaLab
+        return AlphaLab().list_all_models()
+    except: return ["lasso","lightgbm","mlp"]
+
+@router.post("/alpha/train")
+def alpha_train(req: dict, access: bool = Depends(ext_auth)):
+    try:
+        from vnpy.alpha.lab import AlphaLab
+        lab=AlphaLab()
+        lab.load_dataset(req.get("dataset","test"))
+        lab.load_model(req.get("model","lasso"))
+        lab.save_signal(req.get("name",req.get("dataset","test")+"_"+req.get("model","lasso")))
+        return {"status":"success","message":"Model training complete"}
+    except Exception as e: return {"status":"error","message":str(e)}
