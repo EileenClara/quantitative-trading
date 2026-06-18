@@ -18,5 +18,10 @@ vnpy_webtrader>=1.1.0     # Web 交易服务器（REST API + WebSocket）
 vnpy_algotrading>=1.1.0    # 算法交易（TWAP/Iceberg/Sniper/BestLimit）
 vnpy_riskmanager>=2.0.0    # 风险管理（下单频率/数量/撤单限制）
 
+# 数据源
+akshare>=1.18.0             # 免费行情数据（期货/A股/指数，无需 token）
+tushare>=1.4.0              # TuShare 数据（需 token，部分接口需积分）
+vnpy_tushare>=1.4.0         # TuShare VeighNa 适配器
+
 # 数据库
 vnpy_sqlite>=1.1.0        # SQLite 数据库驱动

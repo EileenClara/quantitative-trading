@@ -1,11 +1,10 @@
-# 🏦 VeighNa 量化交易平台 — 妈妈版
+#  VeighNa 量化交易平台 — 妈妈版 v2.0
 
-> 基于 [VeighNa (vnpy)](https://github.com/vnpy/vnpy) 构建的量化交易 Web 平台。
-> 后端接 SimNow 期货仿真 / 实盘 CTP，前端是一键可用的浏览器交易面板。
-> **专为非技术用户设计——妈妈也能轻松交易的量化平台。**
+> 基于 [VeighNa](https://github.com/vnpy/vnpy) 构建的量化交易 Web 平台。浏览器即用，深色高级 UI。
+> CTP 期货仿真 + 策略管理 + 算法交易 + 风控 + K 线图表 + 策略回测。
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.0.0-blueviolet.svg"/>
+  <img src="https://img.shields.io/badge/version-2.0-blueviolet.svg"/>
   <img src="https://img.shields.io/badge/python-3.10|3.11|3.12|3.13-blue.svg"/>
   <img src="https://img.shields.io/badge/platform-windows|linux|macos-yellow.svg"/>
   <img src="https://img.shields.io/badge/license-MIT-orange.svg"/>
@@ -13,187 +12,138 @@
 
 ---
 
-## ✨ 特性
+##  特性
 
-- 🖥️ **浏览器交易面板** — 打开网页就能看账户、持仓、下单，无需安装任何客户端
-- 🛡️ **安全防护** — 所有下单操作弹出确认框，大白话提示"您即将买入 5 手 cu2506，价格：市价，开仓"
-- 📊 **账户全景** — 总权益、可用资金、浮动盈亏、占用保证金，四张大卡片一目了然
-- 📋 **持仓实时监控** — 合约/方向/持仓量/开仓价/当前价/盈亏，红绿标识盈损
-- 🛒 **一键下单** — 合约速查 + 买/卖大按钮 + 限价/市价 + 开/平，三步完成交易
-- 📝 **委托记录追踪** — 所有历史委托单状态实时更新
-- 🟡 **练习模式** — 默认接 SimNow 仿真环境，2000 万模拟资金，零风险练手
-- 🔌 **可切实盘** — 改一行配置即可从仿真切换到真实 CTP 期货账户
+- **浏览交易面板** — 9 个标签页，覆盖完整量化交易流程
+-  **账户总览** — 总权益/可用资金/浮动盈亏/占用保证金，实时卡片
+-  **持仓管理** — 合约/方向/持仓量/开仓价/当前价/盈亏，红绿标识
+-  **一键下单** — 合约速查 + 买卖按钮 + 市价/限价 + 开平，确认弹窗
+-  **委托记录** — 委托状态实时追踪
+-  **CTA 策略管理** — 8 种内置策略，动态参数表单，一键启停
+-  **算法交易** — TWAP/Iceberg/Sniper/BestLimit，自动拆单执行
+-  **风控管理** — 5 条风控规则，开关控制 + 限值设置
+-  **K 线图表** — 蜡烛图 + MA5/10/20/60 + 成交量 + 画线工具 + 缩放平移
+-  **策略回测** — 双均线回测，权益曲线，收益率/回撤/胜率统计
+-  **数据下载** — AKShare 免费下载 16 个期货品种 3 年日线数据
+-  **纯模拟** — SimNow 仿真 2000 万 + PaperAccount 100 万，零风险练手
 
 ---
 
-## 🏗️ 架构
+##  ️ 架构
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    浏览器（妈妈的电脑）                     │
-│                http://你的服务器IP:8000                    │
-│              深色高级交易面板 · 4 个标签页                   │
-└────────────────────────┬────────────────────────────────┘
-                         │ HTTP REST + WebSocket
-                         ▼
-┌─────────────────────────────────────────────────────────┐
-│              run_web.py — FastAPI Web 服务                │
-│              端口 8000 · JWT 认证 · 实时推送               │
-└────────────────────────┬────────────────────────────────┘
-                         │ RPC (tcp://127.0.0.1:2014/4102)
-                         ▼
-┌─────────────────────────────────────────────────────────┐
-│           run_server.py — VeighNa 交易引擎                 │
-│     CTP 期货接口 · PaperAccount 虚拟账户 · CTA 策略引擎     │
-│            RPC 服务 · 行情推送 · 委托管理                   │
-└─────────────────────────────────────────────────────────┘
+浏览器 (http://127.0.0.1:8000)
+    │  REST API + WebSocket
+    ▼
+run_web.py — FastAPI Web 服务 (端口 8000)
+    │  RPC (tcp://127.0.0.1:2014/4102)
+    ▼
+run_server.py — VeighNa 交易引擎
+    │  CTP + PaperAccount + CTA + Algo + Risk
 ```
 
 ---
 
-## 🚀 快速开始
+##  快速开始
 
-### 环境要求
-
-- Python 3.10 ~ 3.13（推荐 3.13）
-- Windows 11+ / Ubuntu 22.04+ / macOS
+### 环境
+- Python 3.10 ~ 3.13
+- Windows / Ubuntu / macOS
 
 ### 1. 安装依赖
-
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. 注册 SimNow 仿真账号（免费）
+### 2. 下载历史数据（免费）
+```bash
+python download_data.py
+```
+16 个期货品种，每个约 725 条日线数据。
 
-去 [SimNow 官网](http://www.simnow.com.cn/) 注册，获取：
-- 用户名 / 密码
-- 交易服务器地址（Trade Front）
-- 行情服务器地址（Market Front）
-- BrokerID：`9999`
-- AppID：`simnow_client_test`
-- 认证码：`0000000000000000`
-
-### 3. 配置并启动
-
-编辑 `run_server.py`，填入你的 SimNow 账号信息：
-
+### 3. 配置 SimNow（可选）
+编辑 `run_server.py`，填入 [SimNow](http://www.simnow.com.cn/) 账号：
 ```python
 ctp_setting = {
-    "用户名": "你的SimNow账号",
-    "密码": "你的SimNow密码",
-    "经纪商代码": "9999",
-    "交易服务器": "182.254.243.31:30001",
-    "行情服务器": "182.254.243.31:30011",
-    "产品名称": "simnow_client_test",
-    "授权编码": "0000000000000000",
-    "产品信息": ""
+    "用户名": "你的账号",
+    "密码": "你的密码",
+    ...
 }
 ```
 
-### 4. 启动服务
-
-打开两个终端：
-
+### 4. 启动
 ```bash
-# 终端 1：启动交易引擎（连接券商 + RPC 服务）
+# 终端 1
 python run_server.py
 
-# 终端 2：启动 Web 服务（浏览器访问的网页）
+# 终端 2
 python run_web.py
 ```
 
-### 5. 打开交易面板
-
-浏览器访问 **`http://127.0.0.1:8000/`**
-
-默认登录账号：`admin` / `vnpy2024`
+### 5. 打开
+浏览器访问 **http://127.0.0.1:8000**  
+默认登录：`admin` / `vnpy2024`
 
 ---
 
-## 📂 项目结构
+##  项目文件
 
-```
-quantitative-trading/
-├── run_server.py              # 交易引擎入口（连券商、开 RPC）
-├── run_web.py                 # Web 服务入口（FastAPI）
-├── trading_dashboard.html     # 前端交易面板（单文件，已部署到 WebTrader）
-├── web_trader_setting.json    # Web 服务配置（用户名/密码/RPC地址）
-├── diagnose_ctp.py            # CTP 连接诊断工具
-├── requirements.txt           # Python 依赖列表
-├── .gitignore
-└── README.md
-```
-
----
-
-## 📋 功能清单
-
-### ✅ 已实现
-
-| 功能 | 说明 |
+| 文件 | 说明 |
 |------|------|
-| 账户总览 | 总权益 / 可用资金 / 浮动盈亏 / 占用保证金 |
-| 持仓管理 | 实时持仓列表，方向/手数/开仓价/现价/盈亏 |
-| 手动下单 | 买/卖、限价/市价、开/平，带确认弹窗 |
-| 委托记录 | 历史委托状态追踪 |
-| 合约速查 | 常用合约一键填入 |
-| 仿真环境 | SimNow CTP 仿真，2000 万模拟资金 |
-| 练习模式提示 | 明确标注模拟环境，避免误以为是实盘 |
-| 行情实时推送 | WebSocket 实时更新行情和成交 |
-| CTP 诊断工具 | 独立脚本检查网络和账号连接状态 |
-
-### 🔜 待开发
-
-| 功能 | 说明 |
-|------|------|
-| K 线图表 | 合约价格走势可视化 |
-| CTA 策略面板 | 预设策略一键启用（双均线/海龟/布林带等） |
-| 策略回测 | 历史数据回测，查看策略收益曲线 |
-| 算法交易 | TWAP/Iceberg/Sniper 智能下单 |
-| 止损止盈 | 下单时自动设置保护 |
-| 风险管理 | 单日最大亏损限制/单笔手数上限 |
-| 盈亏统计 | 日/周/月盈亏报表 |
-| 价差交易 | 跨合约价差套利 |
-| 期权交易 | 期权定价/波动率/希腊字母 |
-| AI 量化 | 多因子机器学习选品种 |
-| 移动端适配 | 手机/平板也能交易 |
+| `run_server.py` | 交易引擎入口（CTP + RPC） |
+| `run_web.py` | Web 服务入口（FastAPI） |
+| `trading_dashboard.html` | 前端交易面板（单文件，9 标签） |
+| `api_extended.py` | 扩展 API（策略/算法/风控/图表/回测） |
+| `rpc_extensions.py` | RPC 客户端扩展 |
+| `download_data.py` | AKShare 历史数据下载 |
+| `fake_datafeed.py` | 假行情测试工具 |
+| `test_all.py` | 33 项全功能测试 |
+| `diagnose_ctp.py` | CTP 连接诊断 |
+| `requirements.txt` | Python 依赖 |
+| `data/` | 下载的历史数据（CSV） |
 
 ---
 
-## 🔧 CTP 连接诊断
+##  API 文档
 
-如果 SimNow 连不上，运行诊断脚本：
+启动后访问 http://127.0.0.1:8000/docs 查看 Swagger 文档。
+
+新增量化 API（`/api/ext/`）：
+
+| 分类 | 端点 |
+|------|------|
+| CTA 策略 | `GET /strategy-classes`, `POST /strategy/add|init|start|stop|remove` |
+| 算法交易 | `GET /algo-templates`, `POST /algo/start|stop|pause|resume` |
+| 风控管理 | `GET /risk-rules`, `POST /risk-rule/update|add` |
+| K 线数据 | `GET /chart-list`, `GET /chart-data/{symbol}` |
+| 策略回测 | `POST /backtest` |
+
+---
+
+##  测试
 
 ```bash
-python diagnose_ctp.py
+PYTHONIOENCODING=utf-8 python test_all.py
 ```
-
-**注意**：SimNow 服务器仅在期货交易时段接受登录：
-- 上午 9:00 — 11:30
-- 下午 13:30 — 15:00
-- 夜盘 21:00 起（各品种收盘时间不同）
-
-非交易时段连接会被拒绝，这是正常现象。
+33 项测试覆盖：服务器状态、认证、基础交易 API、策略管理、算法交易、风控管理、前端页面。
 
 ---
 
-## 🔐 安全说明
+##  已知限制
 
-- **仿真模式**：默认接 SimNow，所有资金为模拟资金，无真实盈亏
-- **下单确认**：所有交易操作弹出大白话确认框，避免误操作
-- **切实盘前**：请务必先在仿真环境充分测试策略
-- **密码管理**：生产环境请修改 `web_trader_setting.json` 中的默认密码
+- **CTP 需交易时段**（9:00-11:30, 13:30-15:00, 21:00+），非交易时段账户/行情数据为空
+- **CTA 策略引擎**需 CTP 连接后才能产生真实信号
+- **TuShare 新账号**需积分才能调用数据接口（AKShare 替代）
 
 ---
 
-## 📄 许可
+##  许可
 
 MIT License
 
----
+##  致谢
 
-## 🙏 致谢
-
-- [VeighNa (vnpy)](https://github.com/vnpy/vnpy) — 国内最成熟的开源量化交易框架
-- [SimNow](http://www.simnow.com.cn/) — 上期技术期货仿真平台
+- [VeighNa](https://github.com/vnpy/vnpy) — 开源量化交易框架
+- [SimNow](http://www.simnow.com.cn/) — 期货仿真平台
+- [AKShare](https://github.com/akfamily/akshare) — 免费开源金融数据
+- [Plotly.js](https://plotly.com/javascript/) — 交互式图表库
