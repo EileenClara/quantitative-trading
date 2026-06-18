@@ -151,6 +151,7 @@ select.form-input{cursor:pointer}
 /* ========== Responsive ========== */
 @media(max-width:900px){.stats-grid{grid-template-columns:repeat(2,1fr)}.card-grid{grid-template-columns:1fr}.topbar{padding:12px 16px}.main{padding:16px}.tabnav{padding:8px 16px}}
 </style>
+<script src="https://cdn.plot.ly/plotly-3.1.0.min.js"></script>
 </head>
 <body>
 
@@ -175,6 +176,8 @@ select.form-input{cursor:pointer}
   <button class="tabbtn quant" data-tab="cta">🤖 CTA 策略</button>
   <button class="tabbtn quant" data-tab="algo">⚡ 算法交易</button>
   <button class="tabbtn quant" data-tab="risk">🛡️ 风控管理</button>
+  <button class="tabbtn" data-tab="chart">📈 K线图表</button>
+  <button class="tabbtn" data-tab="backtest">🔬 策略回测</button>
 </div>
 
 <!-- ===== Main Content ===== -->
@@ -257,6 +260,37 @@ select.form-input{cursor:pointer}
   <!-- ====== 风控管理 ====== -->
   <div class="tabpanel" id="tab-risk">
     <div class="card"><h3>🛡️ 风控规则</h3><div id="riskRules"></div></div>
+  </div>
+
+  <!-- ====== K线图表 ====== -->
+  <div class="tabpanel" id="tab-chart">
+    <div class="card">
+      <h3>📈 K线图表</h3>
+      <div style="display:flex;gap:12px;margin-bottom:16px;">
+        <select class="form-input" id="chartSymbol" style="width:200px"></select>
+        <button class="btn btn-blue" onclick="loadChart()">查看</button>
+      </div>
+      <div id="chartContainer" style="height:500px"></div>
+    </div>
+  </div>
+
+  <!-- ====== 策略回测 ====== -->
+  <div class="tabpanel" id="tab-backtest">
+    <div class="card-grid">
+      <div class="card">
+        <h3>🔬 双均线回测</h3>
+        <div class="form-group"><label class="form-label">品种</label><select class="form-input" id="btSymbol"></select></div>
+        <div class="form-group"><label class="form-label">快线周期</label><input class="form-input" id="btFast" type="number" value="5"></div>
+        <div class="form-group"><label class="form-label">慢线周期</label><input class="form-input" id="btSlow" type="number" value="20"></div>
+        <div class="form-group"><label class="form-label">初始资金</label><input class="form-input" id="btCapital" type="number" value="100000"></div>
+        <button class="btn btn-gold" onclick="runBacktest()" style="width:100%">开始回测</button>
+      </div>
+      <div class="card">
+        <h3>📊 回测结果</h3>
+        <div id="btResults"><p style="color:#667788">选择参数后点击开始回测</p></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:20px"><h3>📈 权益曲线</h3><div id="btChart" style="height:400px"></div></div>
   </div>
 </div>
 
@@ -646,35 +680,19 @@ async function loadContracts(){
   }
 }
 
-// ========== Tab Switch ==========
-function switchTab(tab){document.querySelectorAll('.tabbtn').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.tabpanel').forEach(p=>p.classList.remove('active'));const btn=document.querySelector(`[data-tab="${tab}"]`);if(btn)btn.classList.add('active');const panel=document.getElementById('tab-'+tab);if(panel)panel.classList.add('active');if(tab==='cta'){loadStrategyClasses();loadStrategies();loadContracts();}if(tab==='algo'){loadAlgoTemplates();loadAlgos();loadContracts();}if(tab==='risk') loadRiskRules();if(tab==='trade') loadContracts();}
-document.querySelectorAll('.tabbtn').forEach(b=>b.addEventListener('click',()=>switchTab(b.dataset.tab)));
-
-// ========== Helpers ==========
-function setEl(id,t){const e=document.getElementById(id);if(e)e.textContent=t;}
-function fm(v){const n=Number(v);if(isNaN(n))return '¥ --';const s=n>=0?'':'-',a=Math.abs(n);if(a>=10000)return s+'¥'+(a/10000).toFixed(2)+'万';return s+'¥'+a.toLocaleString('zh-CN');}
-function fmt(t){if(!t)return '--';try{const d=new Date(t);if(isNaN(d.getTime()))return String(t).substring(0,19);return d.toLocaleString('zh-CN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});}catch(e){}return String(t).substring(0,19);}
-function statusBadge(s){const m={'全部成交':'badge-filled','已撤销':'badge-cancelled','拒单':'badge-rejected'};return m[s]||'badge-pending';}
-function showToast(msg,type){const c=document.getElementById('toastContainer'),e=document.createElement('div');e.className='toast '+type;e.textContent=msg;c.appendChild(e);setTimeout(()=>{e.style.opacity='0';setTimeout(()=>e.remove(),300);},3000);}
-function updateStatus(d,t){const dot=document.getElementById('statusDot');dot.className='status-dot '+d;setEl('statusText',t);}
-function updateStatusTime(){const n=new Date();setEl('statusTime',`⏱ 行情更新：${n.getHours().toString().padStart(2,'0')}:${n.getMinutes().toString().padStart(2,'0')}:${n.getSeconds().toString().padStart(2,'0')}`);}
-
-// ========== Risk toggle event delegation ==========
-document.addEventListener('change', function(e){
-  const cb = e.target;
-  if(cb.type==='checkbox' && cb.dataset.rule){
-    const name = cb.dataset.rule;
-    const enabled = cb.checked;
-    apiPost(enabled?'/api/ext/risk-rule/add':'/api/ext/risk-rule/update',{rule_name:name,setting:{active:enabled}});
-    riskState[name] = {enabled};
-    const id = 'badge_'+name.replace(/[^a-zA-Z0-9一-鿿]/g,'_');
-    const badge = document.getElementById(id);
-    if(badge){
-      badge.textContent = enabled?'已启用':'已关闭';
-      badge.className = 'badge risk-status-badge '+(enabled?'badge-running':'badge-stopped');
-    }
-  }
-});
+// ========== Tab Switch Extension ==========
+function switchTab(tab){
+  document.querySelectorAll('.tabbtn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tabpanel').forEach(p=>p.classList.remove('active'));
+  const btn=document.querySelector(`[data-tab="${tab}"]`);if(btn)btn.classList.add('active');
+  const panel=document.getElementById('tab-'+tab);if(panel)panel.classList.add('active');
+  if(tab==='cta'){loadStrategyClasses();loadStrategies();loadContracts();}
+  if(tab==='algo'){loadAlgoTemplates();loadAlgos();loadContracts();}
+  if(tab==='risk') loadRiskRules();
+  if(tab==='trade') loadContracts();
+  if(tab==='chart') loadChartList();
+  if(tab==='backtest') loadChartList();
+}
 
 // ========== Start ==========
 init(); loadContracts(); setInterval(loadAll,10000);

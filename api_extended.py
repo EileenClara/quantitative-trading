@@ -8,6 +8,13 @@ from fastapi.security import OAuth2PasswordBearer
 
 router = APIRouter(prefix="/api/ext", tags=["量化策略"])
 
+import csv
+import os
+import pandas as pd
+from fastapi.responses import JSONResponse
+
+DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+
 # 内存存储（RPC 到 CTA 引擎的桥接暂不稳定，先用本地列表保证可用）
 _strategies_store: dict = {}
 _algos_store: dict = {}
@@ -88,11 +95,9 @@ class RiskAddRequest(BaseModel):
 def list_strategies(access: bool = Depends(ext_auth)):
     """运行中的策略实例"""
     result = list(_strategies_store.values())
-    # 也尝试从 RPC 获取（引擎可能有额外的策略）
     try:
         rpc_result = get_client().rpc_get_strategies()
         if rpc_result:
-            # 合并 RPC 结果（去重）
             existing_names = {s["name"] for s in result}
             for s in rpc_result:
                 if s.get("name") not in existing_names:
@@ -385,3 +390,53 @@ def add_risk_rule(req: RiskAddRequest, access: bool = Depends(ext_auth)):
         return {"status": "success", "message": str(result)}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+
+# ====== K线数据 ======
+@router.get("/chart-data/{symbol}")
+def get_chart_data(symbol: str, access: bool = Depends(ext_auth)):
+    filepath = os.path.join(DATA_DIR, f"{symbol}.csv")
+    if not os.path.exists(filepath):
+        return {"error": f"无数据，请先运行 python download_data.py"}
+    df = pd.read_csv(filepath).tail(200)
+    return df.to_dict(orient="records")
+
+
+@router.get("/chart-list")
+def list_chart_data(access: bool = Depends(ext_auth)):
+    idx = os.path.join(DATA_DIR, "index.json")
+    if os.path.exists(idx):
+        with open(idx, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+
+# ====== 简单回测 ======
+@router.post("/backtest")
+def run_backtest(req: dict, access: bool = Depends(ext_auth)):
+    symbol = req.get("symbol", "CU")
+    fast = int(req.get("fast", 5))
+    slow = int(req.get("slow", 20))
+    capital = float(req.get("capital", 100000))
+    filepath = os.path.join(DATA_DIR, f"{symbol}.csv")
+    if not os.path.exists(filepath):
+        return {"error": f"请先运行 python download_data.py"}
+    df = pd.read_csv(filepath)
+    df["ma_fast"] = df["close"].rolling(fast).mean()
+    df["ma_slow"] = df["close"].rolling(slow).mean()
+    df["signal"] = 0
+    df.loc[df["ma_fast"] > df["ma_slow"], "signal"] = 1
+    df.loc[df["ma_fast"] < df["ma_slow"], "signal"] = -1
+    df["position"] = df["signal"].shift(1).fillna(0)
+    df["returns"] = df["close"].pct_change() * df["position"]
+    df["equity"] = (1 + df["returns"]).cumprod() * capital
+    final_equity = round(df["equity"].iloc[-1], 2)
+    total_return = round((final_equity / capital - 1) * 100, 2)
+    max_dd = round((df["equity"].cummax() - df["equity"]).max() / capital * 100, 2)
+    win_rate = round(len(df[df["returns"] > 0]) / len(df[df["returns"] != 0]) * 100, 2) if len(df[df["returns"] != 0]) > 0 else 0
+    return {
+        "symbol": symbol, "fast": fast, "slow": slow,
+        "initial": capital, "final": final_equity,
+        "return_pct": total_return, "max_dd_pct": max_dd, "win_pct": win_rate,
+        "curve": df[["date", "equity"]].tail(100).to_dict(orient="records"),
+    }

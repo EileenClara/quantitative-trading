@@ -6,6 +6,22 @@ from typing import Any
 from vnpy.trader.engine import MainEngine
 from vnpy.rpc import RpcServer
 
+# 在模块加载时导入所有内置策略（避免 RPC 线程中的 import 问题）
+from vnpy_ctastrategy.strategies.double_ma_strategy import DoubleMaStrategy
+from vnpy_ctastrategy.strategies.atr_rsi_strategy import AtrRsiStrategy
+from vnpy_ctastrategy.strategies.boll_channel_strategy import BollChannelStrategy
+from vnpy_ctastrategy.strategies.dual_thrust_strategy import DualThrustStrategy
+from vnpy_ctastrategy.strategies.king_keltner_strategy import KingKeltnerStrategy
+from vnpy_ctastrategy.strategies.turtle_signal_strategy import TurtleSignalStrategy
+from vnpy_ctastrategy.strategies.multi_signal_strategy import MultiSignalStrategy
+from vnpy_ctastrategy.strategies.multi_timeframe_strategy import MultiTimeframeStrategy
+
+BUILTIN_STRATEGY_CLASSES = [
+    DoubleMaStrategy, AtrRsiStrategy, BollChannelStrategy,
+    DualThrustStrategy, KingKeltnerStrategy, TurtleSignalStrategy,
+    MultiSignalStrategy, MultiTimeframeStrategy,
+]
+
 
 def register_extensions(
     main_engine: MainEngine,
@@ -201,19 +217,10 @@ def register_extensions(
 
 
 def _load_builtin_strategies(cta_engine: Any) -> None:
-    """把 vnpy_ctastrategy 内置的策略文件加载到引擎中"""
-    import vnpy_ctastrategy, os, importlib
-    from pathlib import Path
-    strat_dir = Path(os.path.dirname(vnpy_ctastrategy.__file__)) / "strategies"
-    if not strat_dir.exists():
-        print(f"[WARN] Strategy dir not found: {strat_dir}")
-        return
-    for f in sorted(strat_dir.glob("*_strategy.py")):
-        mod_name = f.stem
-        full_name = f"vnpy_ctastrategy.strategies.{mod_name}"
-        mod = importlib.import_module(full_name)
-        cta_engine.load_strategy_class_from_module(mod)
-        print(f"[OK] Loaded strategy: {mod_name}")
+    """把 vnpy_ctastrategy 内置的策略类直接注入到引擎"""
+    for cls in BUILTIN_STRATEGY_CLASSES:
+        cta_engine.classes[cls.__name__] = cls
+    print(f"[OK] Injected {len(BUILTIN_STRATEGY_CLASSES)} strategy classes")
 
 
 def _get_engine(main_engine: MainEngine, app_name: str) -> Any:
