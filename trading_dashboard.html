@@ -574,40 +574,43 @@ async function loadChart(){
   loadPlotly(()=>{
     const dates=data.map(d=>d.date);
     const closes=data.map(d=>d.close);
-    // MA 均线计算
-    const ma=(arr,n)=>{const r=[];for(let i=0;i<arr.length;i++){if(i<n-1){r.push(null);}else{let s=0;for(let j=0;j<n;j++)s+=arr[i-j];r.push(s/n);}}return r;};
-    const ma5=ma(closes,5),ma10=ma(closes,10),ma20=ma(closes,20);
-    // 成交量
+    const opens=data.map(d=>d.open),highs=data.map(d=>d.high),lows=data.map(d=>d.low);
+    const ma=(arr,n)=>{const r=[];for(let i=0;i<arr.length;i++){if(i<n-1)r.push(null);else{let s=0;for(let j=0;j<n;j++)s+=arr[i-j];r.push(+(s/n).toFixed(2));}return r;};
+    const ma5=ma(closes,5),ma10=ma(closes,10),ma20=ma(closes,20),ma60=ma(closes,60);
     const volumes=data.map(d=>d.volume);
     const volColors=data.map(d=>d.close>=d.open?'rgba(58,125,92,0.5)':'rgba(192,57,43,0.5)');
-    // K线
-    const candlestick={x:dates,open:data.map(d=>d.open),high:data.map(d=>d.high),low:data.map(d=>d.low),close:closes,
+    const candlestick={x:dates,open:opens,high:highs,low:lows,close:closes,
       type:'candlestick',name:sym,xaxis:'x',yaxis:'y',
       increasing:{line:{color:'#3a7d5c'},fillcolor:'#3a7d5c'},
       decreasing:{line:{color:'#c0392b'},fillcolor:'#c0392b'},
-      hoverlabel:{bgcolor:'#1a2740',font:{color:'#f0efe7'}},
-      hovertemplate:'<b>%{x|%Y-%m-%d}</b><br>开: %{open}  高: %{high}<br>低: %{low}  收: %{close}<extra></extra>'};
-    // 均线
-    const traceMA5={x:dates,y:ma5,type:'scatter',mode:'lines',name:'MA5',line:{color:'#f1c40f',width:1},xaxis:'x',yaxis:'y',hoverinfo:'none'};
-    const traceMA10={x:dates,y:ma10,type:'scatter',mode:'lines',name:'MA10',line:{color:'#e67e22',width:1},xaxis:'x',yaxis:'y',hoverinfo:'none'};
-    const traceMA20={x:dates,y:ma20,type:'scatter',mode:'lines',name:'MA20',line:{color:'#9b59b6',width:1},xaxis:'x',yaxis:'y',hoverinfo:'none'};
-    // 成交量
+      hoverlabel:{bgcolor:'#1a2740',font:{color:'#f0efe7',size:13}},
+      hovertemplate:'<b>%{x|%Y年%m月%d日}</b><br>开盘价: %{open}  最高价: %{high}<br>最低价: %{low}  收盘价: %{close}<extra></extra>'};
+    const ln=(n,c,w)=>({x:dates,y:n,type:'scatter',mode:'lines',name:c,line:{color:c,width:w||1.5},xaxis:'x',yaxis:'y',hoverinfo:'none'});
+    const traceMA5=ln(ma5,'#f1c40f',1.5),traceMA10=ln(ma10,'#e67e22',1.5),traceMA20=ln(ma20,'#9b59b6',1.5),traceMA60=ln(ma60,'#3498db',1);
     const volBar={x:dates,y:volumes,type:'bar',name:'成交量',xaxis:'x',yaxis:'y2',
-      marker:{color:volColors},hoverinfo:'none',showlegend:false};
-    const traces=[candlestick,traceMA5,traceMA10,traceMA20,volBar];
+      marker:{color:volColors},hovertemplate:'成交量: %{y} 手<extra></extra>',showlegend:true};
+    const traces=[candlestick,traceMA5,traceMA10,traceMA20,traceMA60,volBar];
     const layout={
       paper_bgcolor:'#1a2740',plot_bgcolor:'#0f1923',
       font:{color:'#8899aa',size:12},
-      xaxis:{gridcolor:'rgba(255,255,255,0.05)',rangeslider:{visible:false},type:'category'},
-      yaxis:{domain:[0.25,1],gridcolor:'rgba(255,255,255,0.05)',title:'价格',titlefont:{size:11}},
-      yaxis2:{domain:[0,0.2],gridcolor:'rgba(255,255,255,0.03)',title:'量',titlefont:{size:10}},
-      margin:{t:10,r:20,b:40,l:60},height:550,
+      title:{text:sym+' K线图',font:{size:18,color:'#c9a96e'},x:0.5,xanchor:'center'},
+      xaxis:{gridcolor:'rgba(255,255,255,0.05)',rangeslider:{visible:false},type:'category',title:{text:'日期',font:{size:11}}},
+      yaxis:{domain:[0.22,1],gridcolor:'rgba(255,255,255,0.05)',title:{text:'价格 (元)',font:{size:11}},tickformat:',d'},
+      yaxis2:{domain:[0,0.18],gridcolor:'rgba(255,255,255,0.03)',title:{text:'成交量 (手)',font:{size:10}}},
+      margin:{t:50,r:30,b:40,l:70},height:600,
       hovermode:'x unified',
-      legend:{orientation:'h',y:1.12,x:0,font:{size:11}},
+      legend:{orientation:'h',y:1.18,x:0.5,xanchor:'center',font:{size:11},itemclick:'toggle',itemdoubleclick:'toggleothers'},
       dragmode:'pan',
-      showlegend:true,
+      newshape:{line:{color:'#c9a96e',width:2,dash:'solid'},fillcolor:'rgba(201,169,110,0.08)'},
     };
-    const config={responsive:true,displayModeBar:true,modeBarButtons:[['pan2d','zoom2d','zoomIn2d','zoomOut2d','autoScale2d','resetScale2d']],displaylogo:false,scrollZoom:true};
+    const config={responsive:true,displayModeBar:true,displaylogo:false,scrollZoom:true,
+      modeBarButtons:[
+        ['drawline','drawopenpath','drawrect','drawcircle','eraseshape'],
+        ['pan2d','zoom2d','zoomIn2d','zoomOut2d'],
+        ['autoScale2d','resetScale2d'],
+      ],
+      modeBarButtonsToAdd:[],modeBarButtonsToRemove:[],
+    };
     Plotly.newPlot('chContainer',traces,layout,config);
   });
 }
