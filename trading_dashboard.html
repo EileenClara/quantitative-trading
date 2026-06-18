@@ -215,7 +215,7 @@ select.finput{cursor:pointer}
     <div class="c-card"><h3 class="qt">创建新策略</h3>
       <div class="fgroup"><label class="flabel">策略类型</label><select class="finput" id="ctaType" onchange="genCtaForm()"></select></div>
       <div class="fgroup"><label class="flabel">策略名称</label><input class="finput" id="ctaName" placeholder="如 沪铜双均线"></div>
-      <div class="fgroup"><label class="flabel">盯市合约 (多个用逗号分隔)</label><input class="finput" id="ctaSymbols" placeholder="如 cu2506.SHFE,rb2510.SHFE" list="contractDL"></div>
+      <div class="fgroup"><label class="flabel">盯市合约</label><div id="ctaContractRows"><div class="cta-row" style="display:flex;gap:8px;margin-bottom:6px"><input class="finput" placeholder="如 cu2506.SHFE" list="contractDL" style="flex:1"><button class="btn btn-e btn-s" onclick="this.closest('.cta-row').remove()" style="flex-shrink:0">✕</button></div></div><button class="btn btn-h btn-s" onclick="addCtaRow()" style="margin-top:4px">+ 添加合约</button></div>
       <div class="fgroup" id="ctaParams"><label class="flabel">策略参数</label><p style="font-size:12px;color:#667788">请先在上方选择策略类型</p></div>
       <button class="btn btn-g" id="btnCtaAdd">添加策略</button>
     </div>
@@ -292,7 +292,7 @@ select.finput{cursor:pointer}
     <div class="c-card"><h3 class="qt">组合策略</h3><p style="color:#667788;font-size:13px">组合策略同时交易多个合约，适合 Alpha 对冲、跨品种套利等场景。</p></div>
     <div class="c-card"><h3 class="qt">创建组合</h3>
       <div class="fgroup"><label class="flabel">策略名称</label><input class="finput" id="pfName" placeholder="如 对冲组合1号"></div>
-      <div class="fgroup"><label class="flabel">合约列表（逗号分隔）</label><input class="finput" id="pfSymbols" placeholder="如 cu2506.SHFE,rb2510.SHFE" list="contractDL"></div>
+      <div class="fgroup"><label class="flabel">合约配置</label><div id="pfContractRows"><div class="pf-row" style="display:flex;gap:8px;margin-bottom:6px;align-items:center"><input class="finput" placeholder="合约" list="contractDL" style="flex:1"><input class="finput" placeholder="权重 (如 1.0 或 -1.0)" type="number" step="any" value="1.0" style="width:100px"><button class="btn btn-e btn-s" onclick="this.closest('.pf-row').remove()" style="flex-shrink:0">✕</button></div></div><button class="btn btn-h btn-s" onclick="addPfRow()" style="margin-top:4px">+ 添加合约</button></div>
       <button class="btn btn-g" onclick="pfAdd()">创建组合策略</button>
     </div>
     <div class="c-card"><h3 class="qt">运行中的组合</h3><div id="pfRunning"><div class="empty">暂无组合策略</div></div></div>
@@ -518,13 +518,18 @@ function genCtaForm(){
     Object.entries(params).map(([k,v])=>`<tr><td style="color:#5dade2;font-size:12px">${k}</td><td style="font-size:12px">${PARAM_LABELS[k]||k}</td><td style="color:#c9a96e">${v}</td><td><input class="finput" id="p_${k}" value="${v}" style="width:100px;padding:6px;font-size:13px" type="number" step="any"></td></tr>`).join('')+
     '</tbody></table>';
 }
+function addCtaRow(){const d=document.createElement('div');d.className='cta-row';d.style.cssText='display:flex;gap:8px;margin-bottom:6px';d.innerHTML='<input class=\"finput\" placeholder=\"如 cu2506.SHFE\" list=\"contractDL\" style=\"flex:1\"><button class=\"btn btn-e btn-s\" onclick=\"this.closest(\\'.cta-row\\').remove()\" style=\"flex-shrink:0\">✕</button>';$('ctaContractRows').appendChild(d);}
 $('btnCtaAdd').addEventListener('click',async()=>{
-  const cn=$('ctaType').value,sn=$('ctaName').value.trim(),vs=$('ctaSymbols').value.trim();
+  const cn=$('ctaType').value,sn=$('ctaName').value.trim();
   if(!sn){showToast('请输入策略名称','err');return;}
+  const inputs=$('ctaContractRows').querySelectorAll('input');
+  const symbols=[];
+  inputs.forEach(i=>{const v=i.value.trim();if(v)symbols.push(v);});
+  if(symbols.length===0){showToast('请至少选择一个合约','err');return;}
   let setting={};
   const s=cachedStrats.find(x=>x.class_name===cn);
   if(s&&s.parameters){for(const k of Object.keys(s.parameters)){const el=$('p_'+k);if(el){const v=parseFloat(el.value);setting[k]=isNaN(v)?s.parameters[k]:v;}}}
-  const r=await apiPost('/api/ext/strategy/add',{class_name:cn,strategy_name:sn,vt_symbols:vs,setting});
+  const r=await apiPost('/api/ext/strategy/add',{class_name:cn,strategy_name:sn,vt_symbols:symbols.join(','),setting});
   showToast(r.message||'已添加','ok');loadCtaRunning();
 });
 async function loadCtaRunning(){
@@ -748,10 +753,19 @@ async function exportData(){
 }
 
 // ===== Portfolio =====
+function addPfRow(){const d=document.createElement('div');d.className='pf-row';d.style.cssText='display:flex;gap:8px;margin-bottom:6px;align-items:center';d.innerHTML='<input class=\"finput\" placeholder=\"合约\" list=\"contractDL\" style=\"flex:1\"><input class=\"finput\" placeholder=\"权重 (如 1.0 或 -1.0)\" type=\"number\" step=\"any\" value=\"1.0\" style=\"width:100px\"><button class=\"btn btn-e btn-s\" onclick=\"this.closest(\\'.pf-row\\').remove()\" style=\"flex-shrink:0\">✕</button>';$('pfContractRows').appendChild(d);}
 async function pfAdd(){
-  const cn='PortfolioStrategyTemplate',name=$('pfName').value.trim(),syms=$('pfSymbols').value.trim();
+  const cn='PortfolioStrategyTemplate',name=$('pfName').value.trim();
   if(!name){showToast('请输入策略名称','err');return;}
-  const r=await apiPost('/api/ext/portfolio/add',{class_name:cn,name:name,vt_symbols:syms,setting:{}});
+  const rows=$('pfContractRows').querySelectorAll('.pf-row');
+  const symbols=[],weights={};
+  rows.forEach(r=>{
+    const inputs=r.querySelectorAll('input');
+    const sym=inputs[0].value.trim();
+    if(sym){symbols.push(sym);weights[sym]=parseFloat(inputs[1].value)||1.0;}
+  });
+  if(symbols.length===0){showToast('请至少添加一个合约','err');return;}
+  const r=await apiPost('/api/ext/portfolio/add',{class_name:cn,name:name,vt_symbols:symbols.join(','),setting:weights});
   showToast(r.message||'已添加','ok');pfLoad();
 }
 async function pfLoad(){
