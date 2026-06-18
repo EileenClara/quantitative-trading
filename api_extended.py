@@ -428,8 +428,10 @@ def run_backtest(req: dict, access: bool = Depends(ext_auth)):
     try:
         # 尝试用原装引擎
         result = get_client().rpc_start_backtesting(strategy, vt_symbol, interval, start, end, capital, {})
-        return {"status": "success", "engine": "vnpy", "statistics": result.get("statistics", {}),
-                "curve": result.get("curve", [])}
+        stats = result.get("statistics", {})
+        if not stats or len(stats) == 0:
+            raise Exception("Empty stats - falling back to simple engine")
+        return {"status": "success", "engine": "vnpy", "statistics": stats, "curve": result.get("curve", [])}
     except Exception:
         # 降级：用 CSV 数据做简单回测
         if not os.path.exists(csv_path):

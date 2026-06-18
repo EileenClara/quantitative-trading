@@ -60,16 +60,29 @@ def register_extensions(
 
         def rpc_get_strategy_classes() -> list:
             """获取所有可用策略类型及参数"""
-            # 如果引擎还没加载策略，先加载内置策略
             if not cta_engine.classes:
                 _load_builtin_strategies(cta_engine)
             names = cta_engine.get_all_strategy_class_names()
+            name_map = {
+                "DoubleMaStrategy": ("双均线策略", "快线上穿慢线买入，下穿卖出。最经典的顺势跟踪策略。", "适合有明显趋势的品种，如螺纹钢、铁矿石"),
+                "AtrRsiStrategy": ("ATR+RSI 组合策略", "用 ATR 判断波动大小，RSI 判断超买超卖，两者结合过滤假信号。", "适合波动较大的品种，如沪铜、原油"),
+                "BollChannelStrategy": ("布林带策略", "价格触及布林带上轨卖出，触及下轨买入，回归中轨平仓。", "适合震荡品种和短线交易，如豆粕、甲醇"),
+                "DualThrustStrategy": ("Dual Thrust 日内突破", "基于前 N 日最高最低价计算上下轨，突破上轨做多，下轨做空。", "适合日内波动大的品种，如股指期货、燃油"),
+                "KingKeltnerStrategy": ("肯特纳通道策略", "基于 ATR 构建动态通道，突破通道上沿做多，下沿做空。", "适合趋势中带波动的品种"),
+                "TurtleSignalStrategy": ("海龟交易策略", "经典趋势跟踪，用唐奇安通道突破入场，ATR 动态计算仓位。", "适合中长线趋势交易，需严格资金管理"),
+                "MultiSignalStrategy": ("多信号综合策略", "同时监听多个技术指标的买卖信号，任一发出即执行。", "适合同时关注多个品种，让程序自动盯盘"),
+                "MultiTimeframeStrategy": ("多周期共振策略", "大周期判断趋势方向，小周期寻找入场点。方向一致才开仓。", "适合追求高胜率的波段操作"),
+            }
             result = []
             for class_name in names:
                 params = cta_engine.get_strategy_class_parameters(class_name)
+                info = name_map.get(class_name, ("", "", ""))
                 result.append({
                     "class_name": class_name,
-                    "parameters": params
+                    "display_name": info[0] or class_name,
+                    "description": info[1] or "",
+                    "scenario": info[2] or "",
+                    "parameters": params,
                 })
             return result
 

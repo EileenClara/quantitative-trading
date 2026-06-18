@@ -667,11 +667,12 @@ async function runBacktest(){
       Object.entries(s).map(([k,v])=>`<div class="card" style="padding:14px"><div class="clabel">${k}</div><div class="cvalue" style="font-size:18px">${typeof v==='number'?v.toFixed(2):v}</div></div>`).join('')
     }</div>`;
   }else{
+    const fe=s.final_equity||r.final||0,tr=s.total_return||r.return_pct||0,md=s.max_drawdown||r.max_dd_pct||0,wr=s.win_rate||r.win_pct||0;
     $('btResult').innerHTML=`<div class="cards" style="grid-template-columns:repeat(2,1fr);gap:10px">
-      <div class="card" style="padding:14px"><div class="clabel">最终权益</div><div class="cvalue" style="font-size:20px">$${(s.final_equity||0).toLocaleString()}</div></div>
-      <div class="card" style="padding:14px"><div class="clabel">总收益率</div><div class="cvalue ${(s.total_return||0)>=0?'up':'dn'}" style="font-size:20px">${s.total_return}%</div></div>
-      <div class="card" style="padding:14px"><div class="clabel">最大回撤</div><div class="cvalue dn" style="font-size:20px">${s.max_drawdown}%</div></div>
-      <div class="card" style="padding:14px"><div class="clabel">胜率</div><div class="cvalue" style="font-size:20px">${s.win_rate}%</div></div>
+      <div class="card" style="padding:14px"><div class="clabel">最终权益</div><div class="cvalue" style="font-size:20px">$${fe.toLocaleString()}</div></div>
+      <div class="card" style="padding:14px"><div class="clabel">总收益率</div><div class="cvalue ${tr>=0?'up':'dn'}" style="font-size:20px">${tr}%</div></div>
+      <div class="card" style="padding:14px"><div class="clabel">最大回撤</div><div class="cvalue dn" style="font-size:20px">${md}%</div></div>
+      <div class="card" style="padding:14px"><div class="clabel">胜率</div><div class="cvalue" style="font-size:20px">${wr}%</div></div>
     </div>`;
   }
   loadPlotly(()=>{
