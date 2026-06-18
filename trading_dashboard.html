@@ -347,11 +347,16 @@ select.finput{cursor:pointer}
 
   <!-- Alpha -->
   <div class="panel" id="p-alpha">
-    <div class="c-card"><h3 class="qt">Alpha 多因子机器学习</h3><p style="color:#667788;font-size:13px">数据集 + 因子特征工程 + ML 模型。完整训练流程需在 Jupyter Notebook 中运行（见 examples/alpha_research）。此面板用于查看已创建的数据集和模型。</p></div>
+    <div class="c-card"><h3 class="qt">Alpha 机器学习选品种</h3><p style="color:#667788;font-size:13px">基于历史数据训练 ML 模型，预测次日涨跌方向。因子自动计算：均线偏离、波动率、动量、成交量变化等 8 个特征。</p></div>
     <div class="g2">
-      <div class="c-card"><h3 class="qt">数据集</h3><div id="alphaDatasets"><p style="color:#667788">加载中...</p></div></div>
-      <div class="c-card"><h3 class="qt">模型</h3><div id="alphaModels"><p style="color:#667788">加载中...</p></div></div>
+      <div class="c-card"><h3 class="qt">训练配置</h3>
+        <div class="fgroup"><label class="flabel">品种</label><select class="finput" id="aSymbol"></select></div>
+        <div class="fgroup"><label class="flabel">模型</label><select class="finput" id="aModel"><option value="lasso">Lasso 回归 (L1正则)</option><option value="logistic">逻辑回归 (L2正则)</option><option value="rf">随机森林</option></select></div>
+        <button class="btn btn-g" onclick="alphaTrain()" style="width:100%">开始训练</button>
+      </div>
+      <div class="c-card"><h3 class="qt">训练结果</h3><div id="aResult"><p style="color:#667788">选择品种和模型后点击"开始训练"</p></div></div>
     </div>
+    <div class="c-card"><h3>信号权益曲线</h3><div id="aChart" style="height:380px"></div></div>
   </div>
 
 </div>
@@ -838,9 +843,24 @@ async function scCancel(oid){const r=await apiPost('/api/ext/script/cancel',{vt_
 // ===== Alpha =====
 async function alphaLoad(){
   const ds=await apiGet('/api/ext/alpha/datasets');
-  $('alphaDatasets').innerHTML=ds.length>0?ds.map(d=>`<div class="scard"><h4>${d}</h4></div>`).join(''):'<p style="color:#667788">暂无数据集。通过 Jupyter Notebook 创建（examples/alpha_research/）。</p>';
-  const ms=await apiGet('/api/ext/alpha/models');
-  $('alphaModels').innerHTML=ms.length>0?ms.map(m=>`<div class="scard"><h4>${m}</h4></div>`).join(''):'<p style="color:#667788">暂无模型。通过 Jupyter Notebook 训练。</p>';
+  $('aSymbol').innerHTML=ds.map(d=>`<option value="${d}">${d}</option>`).join('');
+}
+async function alphaTrain(){
+  const sym=$('aSymbol').value||'CU',model=$('aModel').value;
+  showToast('训练中，请稍候...','ok');
+  const r=await apiPost('/api/ext/alpha/train',{symbol:sym,model:model});
+  if(r.status==='error'){showToast(r.message,'err');return;}
+  $('aResult').innerHTML=`<div class="cards" style="grid-template-columns:repeat(2,1fr);gap:10px">
+    <div class="card" style="padding:14px"><div class="clabel">训练集准确率</div><div class="cvalue" style="font-size:22px">${r.train_acc}%</div></div>
+    <div class="card" style="padding:14px"><div class="clabel">测试集准确率</div><div class="cvalue ${r.test_acc>=50?'up':'dn'}" style="font-size:22px">${r.test_acc}%</div></div>
+    <div class="card" style="padding:14px"><div class="clabel">样本数</div><div class="cvalue" style="font-size:20px">${r.n_samples}</div></div>
+    <div class="card" style="padding:14px"><div class="clabel">特征数</div><div class="cvalue" style="font-size:20px">${r.n_features}</div></div>
+  </div>
+  <div style="margin-top:14px"><p style="font-size:13px;color:#8899aa">Top 因子权重：${(r.top_features||[]).map(([k,v])=>'<span style=\"color:#c9a96e\">'+k+'</span>='+v).join(' | ')}</p></div>`;
+  loadPlotly(()=>{
+    const curve=r.curve||[];
+    Plotly.newPlot('aChart',[{x:curve.map(d=>d.date),y:curve.map(d=>d.equity),type:'scatter',mode:'lines',line:{color:'#c9a96e',width:2},fill:'tozeroy',fillcolor:'rgba(201,169,110,0.1)'}],{paper_bgcolor:'#1a2740',plot_bgcolor:'#0f1923',font:{color:'#8899aa'},xaxis:{gridcolor:'rgba(255,255,255,0.05)'},yaxis:{gridcolor:'rgba(255,255,255,0.05)'},margin:{t:10,r:10,b:40,l:60},height:380,showlegend:false},{responsive:true,displayModeBar:false});
+  });
 }
 
 // ===== Option =====

@@ -630,28 +630,78 @@ def script_orders(access: bool = Depends(ext_auth)):
     try: return get_client().rpc_script_get_orders()
     except: return []
 
-# ====== Alpha Lab ======
+# ====== Alpha ML (sklearn, no notebook needed) ======
 @router.get("/alpha/datasets")
 def alpha_datasets(access: bool = Depends(ext_auth)):
-    try:
-        from vnpy.alpha.lab import AlphaLab
-        return AlphaLab("data/alpha").list_all_datasets()
+    try: return [f.replace(".csv","") for f in os.listdir(DATA_DIR) if f.endswith(".csv")]
     except: return []
 
 @router.get("/alpha/models")
 def alpha_models(access: bool = Depends(ext_auth)):
-    try:
-        from vnpy.alpha.lab import AlphaLab
-        return AlphaLab("data/alpha").list_all_models()
-    except: return ["lasso","lightgbm","mlp"]
+    return ["lasso","rf","logistic"]
 
 @router.post("/alpha/train")
-def alpha_train(req: dict, access: bool = Depends(ext_auth)):
-    try:
-        from vnpy.alpha.lab import AlphaLab
-        lab=AlphaLab("data/alpha")
-        lab.load_dataset(req.get("dataset","test"))
-        lab.load_model(req.get("model","lasso"))
-        lab.save_signal(req.get("name",req.get("dataset","test")+"_"+req.get("model","lasso")))
-        return {"status":"success","message":"Model training complete"}
-    except Exception as e: return {"status":"error","message":str(e)}
+def alpha_train_web(req: dict, access: bool = Depends(ext_auth)):
+    import numpy as np
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.ensemble import RandomForestClassifier
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.model_selection import train_test_split
+
+    symbol = req.get("symbol","CU")
+    model_type = req.get("model","lasso")
+
+    fp = os.path.join(DATA_DIR, f"{symbol}.csv")
+    if not os.path.exists(fp):
+        return {"status":"error","message":f"请先运行 python download_data.py"}
+
+    df = pd.read_csv(fp).dropna()
+    if len(df) < 200:
+        return {"status":"error","message":f"数据不足，需要至少200条"}
+
+    df["ret"]=df["close"].pct_change()
+    df["ma5"]=df["close"].rolling(5).mean()/df["close"]-1
+    df["ma10"]=df["close"].rolling(10).mean()/df["close"]-1
+    df["ma20"]=df["close"].rolling(20).mean()/df["close"]-1
+    df["vol_chg"]=df["volume"].pct_change()
+    df["hl_ratio"]=(df["high"]-df["low"])/df["close"]
+    df["co_ratio"]=(df["close"]-df["open"])/df["open"]
+    df["momentum"]=df["close"].pct_change(10)
+    df["volatility"]=df["ret"].rolling(20).std()
+    df["target"]=(df["close"].shift(-1)>df["close"]).astype(int)
+    df=df.dropna()
+
+    feats=["ma5","ma10","ma20","vol_chg","hl_ratio","co_ratio","momentum","volatility"]
+    X=df[feats].values; y=df["target"].values
+    X=StandardScaler().fit_transform(X)
+    Xt,Xe,yt,ye=train_test_split(X,y,test_size=0.3,shuffle=False)
+
+    if model_type=="rf":
+        model=RandomForestClassifier(n_estimators=100,max_depth=5,random_state=42)
+    elif model_type=="lasso":
+        model=LogisticRegression(penalty="l1",solver="saga",max_iter=5000,C=0.1)
+    else:
+        model=LogisticRegression(penalty="l2",solver="lbfgs",max_iter=5000)
+
+    model.fit(Xt,yt)
+    train_acc=model.score(Xt,yt); test_acc=model.score(Xe,ye)
+    imp=np.abs(model.coef_[0] if hasattr(model,"coef_") else model.feature_importances_)
+    top=sorted(zip(feats,imp),key=lambda x:-x[1])[:5]
+
+    yp=model.predict(X)
+    df["pred"]=yp
+    df["equity"]=(1+df["ret"]*pd.Series(yp).shift(1).fillna(0)).cumprod()*100000
+    curve=df[["date","equity"]].iloc[-100:].fillna(0).to_dict(orient="records")
+    for c in curve: c["equity"]=float(0 if pd.isna(c["equity"]) else c["equity"])
+
+    def safe_float(v):
+        try:
+            f=float(v)
+            return 0.0 if np.isnan(f) or np.isinf(f) else f
+        except: return 0.0
+
+    return {"status":"success","model":model_type,"symbol":symbol,
+            "train_acc":safe_float(round(train_acc*100,2)),"test_acc":safe_float(round(test_acc*100,2)),
+            "n_samples":int(len(df)),"n_features":int(len(feats)),
+            "top_features":[[str(f),safe_float(round(v,4))] for f,v in top],
+            "curve":curve}
