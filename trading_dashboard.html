@@ -164,6 +164,9 @@ select.finput{cursor:pointer}
   <button class="tab" data-tab="backtest">策略回测</button>
   <button class="tab" data-tab="data">数据管理</button>
   <button class="tab" data-tab="record">行情录制</button>
+  <button class="tab qt" data-tab="portfolio">组合策略</button>
+  <button class="tab qt" data-tab="spread">价差交易</button>
+  <button class="tab qt" data-tab="option">期权交易</button>
 </div>
 
 <!-- Main -->
@@ -281,6 +284,45 @@ select.finput{cursor:pointer}
         <button class="btn btn-e" onclick="recorderAct('stop')">停止录制</button>
       </div>
       <div id="recStatus" style="margin-top:14px"><p style="color:#667788">点击开始录制，实时行情将存入数据库供回测使用</p></div>
+    </div>
+  </div>
+
+  <!-- Portfolio Strategy -->
+  <div class="panel" id="p-portfolio">
+    <div class="c-card"><h3 class="qt">组合策略</h3><p style="color:#667788;font-size:13px">组合策略同时交易多个合约，适合 Alpha 对冲、跨品种套利等场景。</p></div>
+    <div class="c-card"><h3 class="qt">创建组合</h3>
+      <div class="fgroup"><label class="flabel">策略名称</label><input class="finput" id="pfName" placeholder="如 对冲组合1号"></div>
+      <div class="fgroup"><label class="flabel">合约列表（逗号分隔）</label><input class="finput" id="pfSymbols" placeholder="如 cu2506.SHFE,rb2510.SHFE" list="contractDL"></div>
+      <button class="btn btn-g" onclick="pfAdd()">创建组合策略</button>
+    </div>
+    <div class="c-card"><h3 class="qt">运行中的组合</h3><div id="pfRunning"><div class="empty">暂无组合策略</div></div></div>
+  </div>
+
+  <!-- Spread Trading -->
+  <div class="panel" id="p-spread">
+    <div class="c-card"><h3 class="qt">价差交易</h3><p style="color:#667788;font-size:13px">使用两个或多个相关合约的价差进行套利交易。例如买入沪铜、卖出螺纹钢。</p></div>
+    <div class="g2">
+      <div class="c-card"><h3 class="qt">创建价差</h3>
+        <div class="fgroup"><label class="flabel">价差名称</label><input class="finput" id="spName" placeholder="如 铜螺价差"></div>
+        <div class="fgroup"><label class="flabel">腿1（正=买入）</label><input class="finput" id="spLeg1" placeholder="如 cu2506.SHFE:1"></div>
+        <div class="fgroup"><label class="flabel">腿2（负=卖出）</label><input class="finput" id="spLeg2" placeholder="如 rb2510.SHFE:-1"></div>
+        <button class="btn btn-g" onclick="spCreate()">创建价差</button>
+      </div>
+      <div class="c-card"><h3 class="qt">控制</h3>
+        <button class="btn btn-r" onclick="spAction('start')" style="width:100%;margin-bottom:10px">启动引擎</button>
+        <button class="btn btn-e" onclick="spAction('stop')" style="width:100%">停止引擎</button>
+      </div>
+    </div>
+    <div class="c-card"><h3 class="qt">价差数据</h3><div id="spData"><div class="empty">启动引擎后显示价差数据</div></div></div>
+  </div>
+
+  <!-- Option Trading -->
+  <div class="panel" id="p-option">
+    <div class="c-card"><h3 class="qt">期权交易</h3><p style="color:#667788;font-size:13px">期权定价、波动率分析、希腊字母风险指标。需 CTP 连接获取期权链数据。</p></div>
+    <div class="c-card"><h3 class="qt">监控面板</h3>
+      <div class="fgroup"><label class="flabel">标的合约</label><input class="finput" id="optUl" placeholder="如 cu2506" list="contractDL"></div>
+      <button class="btn btn-b" onclick="optLoad()">加载期权数据</button>
+      <div id="optData" style="margin-top:14px"><p style="color:#667788">输入标的合约后点击加载</p></div>
     </div>
   </div>
 
@@ -409,6 +451,9 @@ function switchTab(name){
   if(name==='backtest') loadChartList();
   if(name==='data') loadDataOverview();
   if(name==='record') loadRecorderStatus();
+  if(name==='portfolio') pfLoad();
+  if(name==='spread') spLoad();
+  if(name==='option') optLoad();
 }
 document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>switchTab(b.dataset.tab)));
 
@@ -700,6 +745,44 @@ async function exportData(){
   if(!sym){showToast('请输入合约代码','err');return;}
   const r=await apiPost('/api/ext/data/export',{filepath:`data/export_${sym}.csv`,symbol:sym,exchange:ex,interval:'d',start:'2023-01-01',end:'2026-12-31'});
   showToast(r.message||'完成',r.status==='success'?'ok':'err');
+}
+
+// ===== Portfolio =====
+async function pfAdd(){
+  const cn='PortfolioStrategyTemplate',name=$('pfName').value.trim(),syms=$('pfSymbols').value.trim();
+  if(!name){showToast('请输入策略名称','err');return;}
+  const r=await apiPost('/api/ext/portfolio/add',{class_name:cn,name:name,vt_symbols:syms,setting:{}});
+  showToast(r.message||'已添加','ok');pfLoad();
+}
+async function pfLoad(){
+  const s=await apiGet('/api/ext/portfolio/strategies');
+  if(s.length===0){$('pfRunning').innerHTML='<div class="empty">暂无组合策略</div>';return;}
+  $('pfRunning').innerHTML=s.map(x=>`<div class="scard"><h4>${x.name} <span class="badge ${x.trading?'bg-ok':'bg-off'}">${x.trading?'运行中':'已停止'}</span></h4><div class="desc">${x.class_name}</div><div class="acts"><button class="btn btn-r btn-s" onclick="pfAct('init','${x.name}')">初始化</button><button class="btn btn-r btn-s" onclick="pfAct('start','${x.name}')">启动</button><button class="btn btn-e btn-s" onclick="pfAct('stop','${x.name}')">停止</button></div></div>`).join('');
+}
+async function pfAct(action,name){const r=await apiPost('/api/ext/portfolio/'+action,{name:name});showToast(r.message||'完成','ok');pfLoad();}
+
+// ===== Spread =====
+async function spCreate(){
+  const name=$('spName').value.trim(),l1=$('spLeg1').value.trim(),l2=$('spLeg2').value.trim();
+  if(!name||!l1||!l2){showToast('请填写完整信息','err');return;}
+  const r=await apiPost('/api/ext/spread/create',{name:name,legs:l1+','+l2});
+  showToast(r.message||'已创建','ok');spLoad();
+}
+async function spAction(action){const r=await apiPost('/api/ext/spread/'+action,{});showToast(r.message||'完成','ok');spLoad();}
+async function spLoad(){
+  const data=await apiGet('/api/ext/spread/data');
+  const pos=await apiGet('/api/ext/spread/positions');
+  if(data.length===0){$('spData').innerHTML='<div class="empty">暂无价差数据。请创建价差并启动引擎。</div>';return;}
+  $('spData').innerHTML=`<table><thead><tr><th>价差名称</th><th>腿</th><th>净值</th></tr></thead><tbody>${data.map(d=>`<tr><td><b>${d.name}</b></td><td>${d.legs?d.legs.map(l=>l.join(':')).join(', '):'-'}</td><td>${d.price||0}</td></tr>`).join('')}</tbody></table>`;
+}
+
+// ===== Option =====
+async function optLoad(){
+  const ul=$('optUl').value.trim();if(!ul){showToast('请输入标的合约','err');return;}
+  const data=await apiGet('/api/ext/option/data/default');
+  if(data){
+    $('optData').innerHTML=`<div class="c-card"><h3 class="qt">期权组合: ${data.name||'default'}</h3><p style="color:#667788;font-size:13px">期权链数据需 CTP 连接后才能获取。CTP 连上后此处将显示：期权链、隐含波动率、希腊字母（Delta/Gamma/Vega/Theta）、风险敞口等。</p></div>`;
+  }
 }
 
 // ===== Data Recorder =====

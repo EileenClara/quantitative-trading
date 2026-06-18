@@ -27,8 +27,12 @@ from vnpy_algotrading import AlgoTradingApp
 # ====== 风险管理 ======
 from vnpy_riskmanager import RiskManagerApp
 
-# ====== 数据管理 ======
+# ====== 组合策略 / 价差 / 期权 ======
+from vnpy_portfoliostrategy import PortfolioStrategyApp
 from vnpy_spreadtrading import SpreadTradingApp
+from vnpy_optionmaster import OptionMasterApp
+
+# ====== 数据管理 ======
 from vnpy_datarecorder import DataRecorderApp
 
 # ====== RPC 服务（核心！让 WebTrader 能连进来）======
@@ -84,10 +88,12 @@ def main() -> None:
     main_engine.add_app(RiskManagerApp)
     print("[OK] 风控模块已加载")
 
-    # 7b. 添加数据管理 + 行情录制
+    # 7b. 添加组合策略 + 价差 + 期权 + 数据管理
+    main_engine.add_app(PortfolioStrategyApp)
     main_engine.add_app(SpreadTradingApp)
+    main_engine.add_app(OptionMasterApp)
     main_engine.add_app(DataRecorderApp)
-    print("[OK] 数据管理 + 行情录制已加载")
+    print("[OK] 组合策略 + 价差交易 + 期权交易 + 数据管理已加载")
 
     # 8. 添加 RPC 服务（让 WebTrader 可以通过网络调用）
     rpc_engine: RpcEngine = main_engine.add_app(RpcServiceApp)

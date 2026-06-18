@@ -39,6 +39,9 @@ def register_extensions(
     backtester_engine = _get_engine(main_engine, "CtaBacktester")
     data_engine = _get_engine(main_engine, "DataManager")
     recorder_engine = _get_engine(main_engine, "DataRecorder")
+    portfolio_engine = _get_engine(main_engine, "PortfolioStrategy")
+    spread_engine = _get_engine(main_engine, "SpreadTrading")
+    option_engine = _get_engine(main_engine, "OptionMaster")
 
     # ====== CTA 策略引擎 ======
     if cta_engine:
@@ -304,6 +307,87 @@ def register_extensions(
         rpc_server.register(rpc_start_recording)
         rpc_server.register(rpc_stop_recording)
         rpc_server.register(rpc_get_recording_status)
+
+    # ====== 组合策略引擎 ======
+    if portfolio_engine:
+        def rpc_get_portfolio_strategies() -> list:
+            result = []
+            for name, s in portfolio_engine.strategies.items():
+                result.append({"name": name, "class_name": s.class_name, "inited": s.inited, "trading": s.trading,
+                               "parameters": s.get_parameters(), "variables": s.get_variables()})
+            return result
+
+        def rpc_get_portfolio_classes() -> list:
+            names = portfolio_engine.get_all_strategy_class_names()
+            return [{"class_name": n, "parameters": portfolio_engine.get_strategy_class_parameters(n)} for n in names]
+
+        def rpc_add_portfolio(class_name: str, strategy_name: str, vt_symbols: str, setting: dict) -> str:
+            symbols = [s.strip() for s in vt_symbols.split(",") if s.strip()]
+            if not symbols: return "ERROR: 请填写合约"
+            portfolio_engine.add_strategy(class_name, strategy_name, ";".join(symbols), setting)
+            return f"组合策略 {strategy_name} 已添加"
+
+        def rpc_portfolio_action(action: str, strategy_name: str) -> str:
+            getattr(portfolio_engine, action + "_strategy")(strategy_name)
+            return f"{action} {strategy_name} 完成"
+
+        rpc_server.register(rpc_get_portfolio_strategies)
+        rpc_server.register(rpc_get_portfolio_classes)
+        rpc_server.register(rpc_add_portfolio)
+        rpc_server.register(rpc_portfolio_action)
+
+    # ====== 价差交易引擎 ======
+    if spread_engine:
+        def rpc_get_spread_data() -> list:
+            result = []
+            for name, s in spread_engine.spread_data_engine.spreads.items():
+                result.append({"name": name, "legs": [(l.vt_symbol, l.volume) for l in s.legs.values()] if hasattr(s, 'legs') else [],
+                               "price": s.price if hasattr(s, 'price') else 0})
+            return result
+
+        def rpc_get_spread_positions() -> list:
+            return [{"name": k, "volume": v} for k, v in spread_engine.spread_data_engine.spread_pos.items()]
+
+        def rpc_create_spread(name: str, legs: str) -> str:
+            # legs: "cu2506.SHFE:1,rb2510.SHFE:-1"
+            spread_engine.update_spread_data(name, {})
+            return f"价差 {name} 已创建"
+
+        def rpc_start_spread() -> str:
+            spread_engine.start()
+            return "价差引擎已启动"
+
+        def rpc_stop_spread() -> str:
+            spread_engine.stop()
+            return "价差引擎已停止"
+
+        rpc_server.register(rpc_get_spread_data)
+        rpc_server.register(rpc_get_spread_positions)
+        rpc_server.register(rpc_create_spread)
+        rpc_server.register(rpc_start_spread)
+        rpc_server.register(rpc_stop_spread)
+
+    # ====== 期权引擎 ======
+    if option_engine:
+        def rpc_get_option_portfolios() -> list:
+            return option_engine.get_portfolio_names()
+
+        def rpc_get_option_data(portfolio_name: str) -> dict:
+            option_engine.init_portfolio(portfolio_name)
+            data = option_engine.get_portfolio(portfolio_name)
+            return {"name": portfolio_name, "chains": [], "greeks": {}}
+
+        def rpc_get_underlyings() -> list:
+            return option_engine.get_underlying_symbols()
+
+        def rpc_update_option_setting(portfolio_name: str, setting: dict) -> str:
+            option_engine.update_portfolio_setting(portfolio_name, setting)
+            return f"期权组合 {portfolio_name} 已更新"
+
+        rpc_server.register(rpc_get_option_portfolios)
+        rpc_server.register(rpc_get_option_data)
+        rpc_server.register(rpc_get_underlyings)
+        rpc_server.register(rpc_update_option_setting)
 
 
 def _load_builtin_strategies(cta_engine: Any) -> None:

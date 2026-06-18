@@ -512,9 +512,84 @@ def start_recording(req: dict, access: bool = Depends(ext_auth)):
 
 @router.post("/recorder/stop")
 def stop_recording(req: dict, access: bool = Depends(ext_auth)):
-    """停止录制"""
     try:
         result = get_client().rpc_stop_recording(req.get("symbols", ""))
         return {"status": "success", "message": str(result)}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+
+# ====== 组合策略 ======
+@router.get("/portfolio/strategies")
+def get_portfolio_strategies(access: bool = Depends(ext_auth)):
+    try: return get_client().rpc_get_portfolio_strategies()
+    except: return []
+
+@router.get("/portfolio/classes")
+def get_portfolio_classes(access: bool = Depends(ext_auth)):
+    try: return get_client().rpc_get_portfolio_classes()
+    except: return [{"class_name": "PortfolioStrategyTemplate", "parameters": {}}]
+
+@router.post("/portfolio/add")
+def add_portfolio(req: dict, access: bool = Depends(ext_auth)):
+    try:
+        r = get_client().rpc_add_portfolio(req.get("class_name",""), req.get("name",""), req.get("vt_symbols",""), req.get("setting",{}))
+        return {"status": "success", "message": str(r)}
+    except Exception as e: return {"status": "error", "message": str(e)}
+
+@router.post("/portfolio/{action}")
+def portfolio_action(action: str, req: dict, access: bool = Depends(ext_auth)):
+    try:
+        r = get_client().rpc_portfolio_action(action, req.get("name",""))
+        return {"status": "success", "message": str(r)}
+    except Exception as e: return {"status": "error", "message": str(e)}
+
+
+# ====== 价差交易 ======
+@router.get("/spread/data")
+def get_spread_data(access: bool = Depends(ext_auth)):
+    try: return get_client().rpc_get_spread_data()
+    except: return []
+
+@router.get("/spread/positions")
+def get_spread_positions(access: bool = Depends(ext_auth)):
+    try: return get_client().rpc_get_spread_positions()
+    except: return []
+
+@router.post("/spread/create")
+def create_spread(req: dict, access: bool = Depends(ext_auth)):
+    try:
+        r = get_client().rpc_create_spread(req.get("name",""), req.get("legs",""))
+        return {"status": "success", "message": str(r)}
+    except Exception as e: return {"status": "error", "message": str(e)}
+
+@router.post("/spread/{action}")
+def spread_action(action: str, access: bool = Depends(ext_auth)):
+    try:
+        r = getattr(get_client(), "rpc_"+action+"_spread")()
+        return {"status": "success", "message": str(r)}
+    except Exception as e: return {"status": "error", "message": str(e)}
+
+
+# ====== 期权交易 ======
+@router.get("/option/portfolios")
+def get_option_portfolios(access: bool = Depends(ext_auth)):
+    try: return get_client().rpc_get_option_portfolios()
+    except: return ["default"]
+
+@router.get("/option/data/{name}")
+def get_option_data(name: str, access: bool = Depends(ext_auth)):
+    try: return get_client().rpc_get_option_data(name)
+    except: return {"name": name, "chains": [], "greeks": {}}
+
+@router.get("/option/underlyings")
+def get_option_underlyings(access: bool = Depends(ext_auth)):
+    try: return get_client().rpc_get_underlyings()
+    except: return []
+
+@router.post("/option/update")
+def update_option_setting(req: dict, access: bool = Depends(ext_auth)):
+    try:
+        r = get_client().rpc_update_option_setting(req.get("name",""), req.get("setting",{}))
+        return {"status": "success", "message": str(r)}
+    except Exception as e: return {"status": "error", "message": str(e)}
