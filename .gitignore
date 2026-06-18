@@ -45,6 +45,9 @@ Thumbs.db
 vnpy/
 _vnpy_backup/
 
+# Crash dumps
+*.stackdump
+
 # vnpy upstream docs/examples (not our project files)
 docs/
 examples/
