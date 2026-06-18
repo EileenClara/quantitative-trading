@@ -356,7 +356,7 @@ async function loadContracts(){
   dl.innerHTML=items.map(x=>`<option value="${x.code}">${x.name}</option>`).join('');
   cl.innerHTML=items.slice(0,12).map(x=>`<div style="padding:7px 10px;cursor:pointer;border-radius:5px;font-size:13px" onmouseover="this.style.background='rgba(255,255,255,0.03)'" onmouseout="this.style.background='transparent'" data-code="${x.code}"><b>${x.code}</b> <span style="color:#667788">${x.name}</span></div>`).join('');
 }
-cl.addEventListener('click',e=>{const el=e.target.closest('[data-code]');if(el){$('oSymbol').value=el.dataset.code;switchTab('trade');}});
+$('contractList').addEventListener('click',e=>{const el=e.target.closest('[data-code]');if(el){$('oSymbol').value=el.dataset.code;switchTab('trade');}});
 
 // ===== Tabs =====
 function switchTab(name){
