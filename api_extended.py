@@ -705,3 +705,25 @@ def alpha_train_web(req: dict, access: bool = Depends(ext_auth)):
             "n_samples":int(len(df)),"n_features":int(len(feats)),
             "top_features":[[str(f),safe_float(round(v,4))] for f,v in top],
             "curve":curve}
+
+
+# ====== Param Optimization ======
+@router.post("/optimize")
+def run_optimization(req: dict, access: bool = Depends(ext_auth)):
+    symbol=req.get("symbol","CU");fast_r=req.get("fast_range",[1,21]);slow_r=req.get("slow_range",[5,61])
+    capital=float(req.get("capital",100000))
+    csv=os.path.join(DATA_DIR,f"{symbol}.csv")
+    if not os.path.exists(csv):return {"error":"请先运行 python download_data.py"}
+    df=pd.read_csv(csv);results=[]
+    for fast in range(fast_r[0],fast_r[1],2):
+        for slow in range(slow_r[0],slow_r[1],5):
+            if fast>=slow:continue
+            df["ma_f"]=df["close"].rolling(fast).mean();df["ma_s"]=df["close"].rolling(slow).mean()
+            df["pos"]=(df["ma_f"]>df["ma_s"]).astype(int).shift(1).fillna(0)
+            df["ret"]=df["close"].pct_change()*df["pos"];df["eq"]=(1+df["ret"]).cumprod()*capital
+            final=df["eq"].iloc[-1];maxdd=(df["eq"].cummax()-df["eq"]).max()
+            wr=len(df[df["ret"]>0])/len(df[df["ret"]!=0])*100 if len(df[df["ret"]!=0])>0 else 0
+            results.append({"fast":fast,"slow":slow,"final":round(final,2),
+                "return_pct":round((final/capital-1)*100,2),"maxdd_pct":round(maxdd/capital*100,2),"win_pct":round(wr,2)})
+    results.sort(key=lambda x:x["return_pct"],reverse=True)
+    return {"results":results[:20],"total_tested":len(results)}

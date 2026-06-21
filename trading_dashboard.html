@@ -169,6 +169,7 @@ select.finput{cursor:pointer}
   <button class="tab qt" data-tab="option">期权交易</button>
   <button class="tab" data-tab="script">脚本交易</button>
   <button class="tab qt" data-tab="alpha">Alpha量化</button>
+  <button class="tab" data-tab="report">盈亏报表</button>
 </div>
 
 <!-- Main -->
@@ -253,11 +254,25 @@ select.finput{cursor:pointer}
         <div class="fgroup"><label class="flabel">起始日期</label><input class="finput" id="btStart" value="2023-06-01"></div>
         <div class="fgroup"><label class="flabel">结束日期</label><input class="finput" id="btEnd" value="2026-06-18"></div>
         <div class="fgroup"><label class="flabel">初始资金</label><input class="finput" id="btCapital" type="number" value="100000"></div>
-        <button class="btn btn-g" onclick="runBacktest()" style="width:100%">开始回测</button>
+        <div style="display:flex;gap:8px"><button class="btn btn-g" onclick="runBacktest()" style="flex:1">开始回测</button><button class="btn btn-b" onclick="runOptimize()" style="flex:1">参数优化</button></div>
       </div>
       <div class="c-card"><h3>回测结果</h3><div id="btResult"><p style="color:#667788">选择参数后点击开始回测</p></div></div>
     </div>
+    <div id="optResults" style="margin-top:16px"></div>
     <div class="c-card"><h3>权益曲线</h3><div id="btChart" style="height:380px"></div></div>
+  </div>
+
+  <!-- P&L Report -->
+  <div class="panel" id="p-report">
+    <div class="c-card"><h3>盈亏统计</h3><p style="color:#667788;font-size:13px;margin-bottom:14px">基于回测数据的盈亏分析。实盘交易数据需要 CTP 连接。</p></div>
+    <div class="g2">
+      <div class="c-card"><h3>回测统计</h3>
+        <div class="fgroup"><label class="flabel">品种</label><select class="finput" id="rpSymbol"></select></div>
+        <button class="btn btn-g" onclick="loadReport()" style="width:100%">生成报表</button>
+      </div>
+      <div class="c-card"><h3>报表结果</h3><div id="rpResult"><p style="color:#667788">选择品种后点击生成报表</p></div></div>
+    </div>
+    <div class="c-card"><h3>收益曲线</h3><div id="rpChart" style="height:400px"></div></div>
   </div>
 
   <!-- Data Manager -->
@@ -886,8 +901,34 @@ async function loadRecorderStatus(){
   $('recStatus').innerHTML=`<p style="color:#3a7d5c">正在录制 ${s.length} 个合约：${s.join(', ')}</p>`;
 }
 
+// ===== Optimization =====
+async function runOptimize(){
+  const sym=$('btSymbol').value||'CU';$('optResults').innerHTML='<div class="c-card"><h3>参数优化中...</h3><p style="color:#c9a96e">正在测试数百种参数组合，请稍候...</p></div>';
+  const r=await apiPost('/api/ext/optimize',{symbol:sym,fast_range:[1,21],slow_range:[5,61],capital:parseFloat($('btCapital').value||100000)});
+  if(r.error){showToast(r.error,'err');return;}
+  const top=r.results||[];
+  $('optResults').innerHTML='<div class="c-card"><h3>Top 5 最优参数 (共测试 '+r.total_tested+' 组)</h3><table><thead><tr><th>排名</th><th>快线</th><th>慢线</th><th>收益率</th><th>最大回撤</th><th>胜率</th><th>操作</th></tr></thead><tbody>'+top.slice(0,5).map((x,i)=>'<tr><td><b>#'+(i+1)+'</b></td><td>'+x.fast+'</td><td>'+x.slow+'</td><td style="color:'+(x.return_pct>=0?'#3a7d5c':'#c0392b')+';font-weight:600">'+x.return_pct+'%</td><td style="color:#c0392b">'+x.maxdd_pct+'%</td><td>'+x.win_pct+'%</td><td><button class="btn btn-b btn-s" onclick="$(\'btFast\').value='+x.fast+';$(\'btSlow\').value='+x.slow+';runBacktest()">应用</button></td></tr>').join('')+'</tbody></table></div>';
+}
+
+// ===== P&L Report =====
+async function loadReport(){
+  const sym=$('rpSymbol').value||'CU';
+  const r=await apiPost('/api/ext/optimize',{symbol:sym,fast_range:[5,6],slow_range:[20,21],capital:100000});
+  const top=(r.results||[])[0];
+  if(!top){$('rpResult').innerHTML='<p style="color:#c0392b">生成失败</p>';return;}
+  $('rpResult').innerHTML='<div class="cards" style="grid-template-columns:repeat(2,1fr);gap:10px"><div class="card" style="padding:12px"><div class="clabel">最优参数</div><div class="cvalue" style="font-size:20px">快'+top.fast+'/慢'+top.slow+'</div></div><div class="card" style="padding:12px"><div class="clabel">总收益率</div><div class="cvalue '+(top.return_pct>=0?'up':'dn')+'" style="font-size:20px">'+top.return_pct+'%</div></div><div class="card" style="padding:12px"><div class="clabel">最大回撤</div><div class="cvalue dn" style="font-size:20px">'+top.maxdd_pct+'%</div></div><div class="card" style="padding:12px"><div class="clabel">胜率</div><div class="cvalue" style="font-size:20px">'+top.win_pct+'%</div></div></div><p style="color:#667788;font-size:11px;margin-top:8px">品种: '+sym+' | 测试了 '+r.total_tested+' 组参数</p>';
+  const bt=await apiPost('/api/ext/backtest',{symbol:sym,fast:top.fast,slow:top.slow,capital:100000,start:'2023-06-01',end:'2026-06-18'});
+  loadPlotly(()=>{
+    const curve=bt.curve||[];if(curve.length===0)return;
+    Plotly.newPlot('rpChart',[{x:curve.map(d=>d.date),y:curve.map(d=>d.equity),type:'scatter',mode:'lines',line:{color:'#c9a96e',width:2},fill:'tozeroy',fillcolor:'rgba(201,169,110,0.1)'}],{paper_bgcolor:'#1a2740',plot_bgcolor:'#0f1923',font:{color:'#8899aa'},title:sym+' 最优参数回测曲线',xaxis:{gridcolor:'rgba(255,255,255,0.05)'},yaxis:{gridcolor:'rgba(255,255,255,0.05)'},margin:{t:40,r:10,b:40,l:60},height:400},{responsive:true,displayModeBar:false});
+  });
+}
+
+// tab switch
+if(name==='report') loadChartList();
+
 // ===== Start =====
-init();
+init();loadContracts();
 setInterval(loadAll,10000);
 setInterval(updateTime,5000);
 </script>
