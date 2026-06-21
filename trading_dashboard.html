@@ -907,7 +907,17 @@ async function runOptimize(){
   const r=await apiPost('/api/ext/optimize',{symbol:sym,fast_range:[1,21],slow_range:[5,61],capital:parseFloat($('btCapital').value||100000)});
   if(r.error){showToast(r.error,'err');return;}
   const top=r.results||[];
-  $('optResults').innerHTML='<div class="c-card"><h3>Top 5 最优参数 (共测试 '+r.total_tested+' 组)</h3><table><thead><tr><th>排名</th><th>快线</th><th>慢线</th><th>收益率</th><th>最大回撤</th><th>胜率</th><th>操作</th></tr></thead><tbody>'+top.slice(0,5).map((x,i)=>'<tr><td><b>#'+(i+1)+'</b></td><td>'+x.fast+'</td><td>'+x.slow+'</td><td style="color:'+(x.return_pct>=0?'#3a7d5c':'#c0392b')+';font-weight:600">'+x.return_pct+'%</td><td style="color:#c0392b">'+x.maxdd_pct+'%</td><td>'+x.win_pct+'%</td><td><button class="btn btn-b btn-s" onclick="$(\'btFast\').value='+x.fast+';$(\'btSlow\').value='+x.slow+';runBacktest()">应用</button></td></tr>').join('')+'</tbody></table></div>';
+  $('optResults').innerHTML='<div class="c-card"><h3>Top 5 最优参数 (共测试 '+r.total_tested+' 组)</h3><table><thead><tr><th>排名</th><th>快线</th><th>慢线</th><th>收益率</th><th>最大回撤</th><th>胜率</th><th>操作</th></tr></thead><tbody>'+top.slice(0,5).map((x,i)=>'<tr><td><b>#'+(i+1)+'</b></td><td>'+x.fast+'</td><td>'+x.slow+'</td><td style="color:'+(x.return_pct>=0?'#3a7d5c':'#c0392b')+';font-weight:600">'+x.return_pct+'%</td><td style="color:#c0392b">'+x.maxdd_pct+'%</td><td>'+x.win_pct+'%</td><td><button class="btn btn-b btn-s" onclick="applyOpt('+x.fast+','+x.slow+')">应用</button></td></tr>').join('')+'</tbody></table></div>';
+}
+
+async function applyOpt(fast,slow){
+  const sym=$('btSymbol').value||'CU',cap=$('btCapital').value||100000,start=$('btStart').value,end=$('btEnd').value;
+  const r=await apiPost('/api/ext/backtest',{symbol:sym,fast:fast,slow:slow,capital:parseFloat(cap),start:start,end:end});
+  if(r.error){showToast(r.error,'err');return;}
+  const s=r.statistics||{};
+  const fe=s.final_equity||r.final||0,tr=s.total_return||r.return_pct||0;
+  $('btResult').innerHTML='<div class="cards" style="grid-template-columns:repeat(2,1fr);gap:10px"><div class="card" style="padding:14px"><div class="clabel">参数 (快'+fast+'/慢'+slow+')</div><div class="cvalue" style="font-size:20px">$'+fe.toLocaleString()+'</div></div><div class="card" style="padding:14px"><div class="clabel">总收益率</div><div class="cvalue '+(tr>=0?'up':'dn')+'" style="font-size:20px">'+tr+'%</div></div></div>';
+  loadPlotly(()=>{const c=r.curve||[];if(c.length===0)return;Plotly.newPlot('btChart',[{x:c.map(d=>d.date),y:c.map(d=>d.equity),type:'scatter',mode:'lines',line:{color:'#c9a96e',width:2},fill:'tozeroy',fillcolor:'rgba(201,169,110,0.1)'}],{paper_bgcolor:'#1a2740',plot_bgcolor:'#0f1923',font:{color:'#8899aa'},title:'快'+fast+'/慢'+slow,font:{color:'#8899aa'},xaxis:{gridcolor:'rgba(255,255,255,0.05)'},yaxis:{gridcolor:'rgba(255,255,255,0.05)'},margin:{t:40,r:10,b:40,l:60},height:380},{responsive:true,displayModeBar:false});});
 }
 
 // ===== P&L Report =====
